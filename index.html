@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ジョッキー視点レース</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000;
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif; }
+  canvas#view { display: block; }
+
+  #hud { position: absolute; inset: 0; pointer-events: none; color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  #distBox { position: absolute; top: 14px; left: 18px; font-size: 26px; font-weight: bold; }
+  #distBox .small, #rankBox .small { font-size: 14px; font-weight: normal; opacity: .85; }
+  #rankBox { position: absolute; top: 14px; right: 18px; font-size: 34px; font-weight: bold; text-align: right; }
+  #timeBox { position: absolute; top: 64px; right: 18px; text-align: right; }
+  #rtime { font-size: 22px; font-weight: bold; }
+  #pace1000 { font-size: 12px; opacity: .85; }
+  #minimap { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.35); border-radius: 8px; }
+  #bottomBox { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+    width: 320px; text-align: center; }
+  #posState { height: 20px; font-size: 15px; font-weight: bold; margin-bottom: 3px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.85); }
+  #stamLabel { font-size: 13px; margin-bottom: 3px; }
+  #stamOuter { width: 100%; height: 16px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.6);
+    border-radius: 8px; overflow: hidden; }
+  #stamBar { height: 100%; width: 100%; background: #3ec46d; transition: background .3s; }
+  #speed { margin-top: 5px; font-size: 18px; font-weight: bold; }
+  #koaiRow { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; }
+  #koaiOuter { flex: 1; height: 8px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.5);
+    border-radius: 4px; overflow: hidden; }
+  #koaiBar { height: 100%; width: 60%; background: #3ec46d; }
+  #demoTip { display: none; position: absolute; top: 64px; left: 18px; max-width: 46%;
+    font-size: 16px; font-weight: bold; color: #7fe9ff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #demoBtn { pointer-events: auto; font-size: 15px; padding: 9px 26px; margin-bottom: 18px;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.5); border-radius: 8px; color: #7fe9ff; }
+  #demoBtn:hover { background: rgba(127,233,255,.25); }
+  #keyHint { position: absolute; bottom: 16px; right: 16px; font-size: 12px; opacity: .7; line-height: 1.7; text-align: right; }
+  #msg { position: absolute; top: 26%; left: 0; right: 0; text-align: center;
+    font-size: 44px; font-weight: bold; color: #ffe14d; opacity: 0; transition: opacity .25s; }
+
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; color: #fff; text-align: center; }
+  .hidden { display: none !important; }
+  #title { background: rgba(0,10,25,.78); }
+  #title h1 { font-size: 40px; margin-bottom: 8px; }
+  #title p { font-size: 15px; margin-bottom: 18px; opacity: .9; }
+  #raceList { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-bottom: 22px; }
+  .raceBtn { pointer-events: auto; cursor: pointer; width: 230px; text-align: left;
+    background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.35);
+    border-radius: 12px; padding: 14px 18px; transition: background .15s, border-color .15s, transform .15s; }
+  .raceBtn:hover { background: rgba(224,52,60,.28); border-color: #ff6a6a; transform: translateY(-3px); }
+  .raceBtn .ry { font-size: 12px; opacity: .75; }
+  .raceBtn .rt { font-size: 21px; font-weight: bold; margin: 2px 0 4px; }
+  .raceBtn .rc { font-size: 13px; opacity: .85; }
+  .raceBtn .rh { font-size: 14px; color: #ffe14d; font-weight: bold; margin-top: 8px; }
+  .raceBtn .rd { font-size: 11.5px; opacity: .7; margin-top: 4px; }
+  table.ctrl { border-collapse: collapse; margin-bottom: 14px; font-size: 14px; }
+  table.ctrl td { padding: 4px 14px; border-bottom: 1px solid rgba(255,255,255,.2); text-align: left; }
+  table.ctrl td:first-child { font-weight: bold; color: #ffe14d; }
+  button { pointer-events: auto; font-size: 20px; font-weight: bold; padding: 12px 46px;
+    border: none; border-radius: 10px; background: #e0343c; color: #fff; cursor: pointer; }
+  button:hover { background: #ff4a52; }
+
+  #count { font-size: 120px; font-weight: bold; color: #ffe14d;
+    text-shadow: 0 3px 12px rgba(0,0,0,.8); pointer-events: none; }
+
+  #result { background: rgba(0,10,25,.82); }
+  #result h2 { font-size: 34px; margin-bottom: 18px; }
+  table.res { border-collapse: collapse; font-size: 16px; margin-bottom: 24px; }
+  table.res { font-size: 14px; }
+  table.res th, table.res td { padding: 3px 12px; border-bottom: 1px solid rgba(255,255,255,.25); }
+  table.res tr.me { color: #ffe14d; font-weight: bold; }
+  .silk { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  #err { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    color: #fff; background: #300; font-size: 18px; padding: 30px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="err">Three.js の読み込みに失敗しました。インターネット接続を確認して再読み込みしてください。</div>
+
+<div id="hud">
+  <div id="distBox">残り <span id="dist">1600</span> <span class="small">m</span></div>
+  <div id="rankBox"><span id="rank">-</span><span class="small"> 位 / 12頭</span></div>
+  <div id="timeBox"><div id="rtime">0:00.0</div><div id="pace1000"></div></div>
+  <canvas id="minimap" width="230" height="110"></canvas>
+  <div id="bottomBox">
+    <div id="posState"></div>
+    <div id="stamLabel">スタミナ</div>
+    <div id="stamOuter"><div id="stamBar"></div></div>
+    <div id="speed">0 km/h</div>
+    <div id="koaiRow"><span>折り合い</span><div id="koaiOuter"><div id="koaiBar"></div></div></div>
+  </div>
+  <div id="demoTip"></div>
+  <div id="keyHint">[↑/W] 追う　[↓/S] 抑える　[V] 後方確認<br>[←→/A・D] 進路　[SPACE] ムチ</div>
+  <div id="msg"></div>
+</div>
+
+<div id="title" class="overlay">
+  <h1>🏇 ジョッキー視点レース</h1>
+  <p>名馬に騎乗して歴史的レースを追体験 — レースを選んでスタート</p>
+  <div id="raceList">
+    <div class="raceBtn" data-race="0">
+      <div class="ry">1997</div>
+      <div class="rt">天皇賞（春）</div>
+      <div class="rc">京都 芝3200m（外回り・右回り）</div>
+      <div class="rh">騎乗馬: マヤノトップガン</div>
+      <div class="rd">極限の淀、三強激突の向こう側へ</div>
+    </div>
+    <div class="raceBtn" data-race="1">
+      <div class="ry">1999</div>
+      <div class="rt">有馬記念</div>
+      <div class="rc">中山 芝2500m（内回り・右回り）</div>
+      <div class="rh">騎乗馬: グラスワンダー</div>
+      <div class="rd">宿命のライバル、最後の死闘</div>
+    </div>
+    <div class="raceBtn" data-race="2">
+      <div class="ry">2022</div>
+      <div class="rt">天皇賞（秋）</div>
+      <div class="rc">東京 芝2000m（左回り）</div>
+      <div class="rh">騎乗馬: イクイノックス</div>
+      <div class="rd">幻影を切り裂き、いざ天才の証明へ</div>
+    </div>
+    <div class="raceBtn" data-race="3">
+      <div class="ry">2005</div>
+      <div class="rt">日本ダービー</div>
+      <div class="rc">東京 芝2400m（左回り）</div>
+      <div class="rh">騎乗馬: ディープインパクト</div>
+      <div class="rd">天空を翔け抜け、無敗の二冠へ</div>
+    </div>
+    <div class="raceBtn" data-race="4">
+      <div class="ry">1990</div>
+      <div class="rt">安田記念</div>
+      <div class="rc">東京 芝1600m（左回り）</div>
+      <div class="rh">騎乗馬: オグリキャップ</div>
+      <div class="rd">府中の静寂を破る、怪物の咆哮</div>
+    </div>
+  </div>
+  <button id="demoBtn">🎬 勝ち方デモを見る（天皇賞・秋を自動プレイ）</button>
+  <table class="ctrl">
+    <tr><td>↑ / W</td><td>追う（加速・スタミナ消費）</td></tr>
+    <tr><td>↓ / S</td><td>抑える（消耗をほぼ止める。回復はしない）</td></tr>
+    <tr><td>← → / A・D</td><td>進路変更（内・外）</td></tr>
+    <tr><td>SPACE</td><td>ムチ（1.5秒加速・スタミナ消費）</td></tr>
+    <tr><td>V</td><td>後ろを見る（押している間）</td></tr>
+  </table>
+  <p style="font-size:13px; opacity:.75; margin-bottom:14px">
+    スタートから450mまでは位置取り自由（↑で押しても掛からない）。<br>
+    道中は前の馬の4〜9m後ろをキープ。前が開くと行きたがり、詰まると強く引っ掛かる。<br>
+    <b>手綱を引く(↓)と余計に掛かる</b>ので、折り合いは「壁の後ろで我慢」でしか直らない。
+  </p>
+  <p style="font-size:13px; opacity:.75">
+    序盤は脚をためて、最終直線でスパートするのがセオリー。<br>
+    前の馬の真後ろにつくとスリップストリームで消耗が減る。
+  </p>
+</div>
+
+<div id="count" class="overlay hidden"></div>
+
+<div id="result" class="overlay hidden">
+  <h2 id="resTitle">レース結果</h2>
+  <table class="res" id="resTable"></table>
+  <button id="retryBtn">もう一度走る</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
