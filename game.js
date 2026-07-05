@@ -36,11 +36,11 @@ const PLAYER = {
 // 基礎maxVの差は小さく、残スタミナ変換(stamKick, 最大+1.8)が末脚の主役。
 // 脚を溜めた馬はバテた先行勢より3〜4m/s速い状態で直線に飛んでくる
 const STYLES = {
-  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 17.9, spurt: 700 },
-  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 18.0, spurt: 650 },
-  "先行":   { early:  0.3, cruise: 16.27, maxV: 18.15, spurt: 640 },
-  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.4, spurt: 650 },
-  "追込":   { early: -0.35, cruise: 16.5, maxV: 18.55, spurt: 630 }
+  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 17.85, spurt: 700 },
+  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 17.95, spurt: 650 },
+  "先行":   { early:  0.3, cruise: 16.27, maxV: 17.95, spurt: 640 },
+  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.85, spurt: 680 },
+  "追込":   { early: -0.35, cruise: 16.5, maxV: 19.05, spurt: 670 }
 };
 
 // spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
@@ -693,7 +693,7 @@ function nearAhead(h) {
   let bestBlock = null, bestSlip = null, cover = false;
   for (let i = 0; i < horses.length; i++) {
     const o = horses[i];
-    if (o === h) continue;
+    if (o === h || o.finished) continue;   // ゴール済みの馬は壁にもスリップにもならない
     const ds = o.s - h.s;
     const dl = Math.abs(o.lane - h.lane);
     if (ds > 0 && ds < 4.0 && dl < 1.3) {
@@ -708,7 +708,7 @@ function nearAhead(h) {
 }
 
 function updateHorse(h, dt) {
-  if (h.finished) { h.v = Math.max(6, h.v - dt * 1.5); h.s += h.v * dt; return; }
+  if (h.finished) { h.v = Math.max(11, h.v - dt * 1.5); h.s += h.v * dt; return; }   // ゴール後は流す（後続の邪魔はしない）
   if (raceTime < h.reaction) return;
 
   const rem = FINISH_S - h.s;
@@ -795,7 +795,7 @@ function updateHorse(h, dt) {
   // 重なり解消: ほぼ同じ位置に重なった馬は横に押し出される
   for (let i = 0; i < horses.length; i++) {
     const o = horses[i];
-    if (o === h) continue;
+    if (o === h || o.finished) continue;
     if (Math.abs(o.s - h.s) < 1.6 && Math.abs(o.lane - h.lane) < 0.7) {
       h.lane += (h.lane >= o.lane ? 1 : -1) * 1.2 * dt;
       h.lane = Math.max(0.3, Math.min(12.5, h.lane));
@@ -805,7 +805,7 @@ function updateHorse(h, dt) {
 
   // スタミナ。テン(序盤)を飛ばすと余計に消耗する = 逃げのリスク
   let drain = Math.max(0, h.v - PLAYER.drainBase - RACE.spdAdj) * RACE.drainK;
-  if (raced < 400) drain *= 1.2;
+  if (raced < 500) drain *= 1.35;   // テンに脚を使った代償を重く（前崩れしやすく）
   if (h.slip) drain *= 0.6;
   else if (h.cover) drain *= 0.8;   // 壁があるだけでも風よけになる
   // 掛かりの代償（全馬）: ゲージ半分を超えると消耗が増え、深いほど重くなる(最大+80%)
@@ -872,7 +872,7 @@ function sideBlocked(h, dir) {
   if (h.s - START_S < 500) return false;
   for (let i = 0; i < horses.length; i++) {
     const o = horses[i];
-    if (o === h) continue;
+    if (o === h || o.finished) continue;
     const ds = Math.abs(o.s - h.s);
     const dl = o.lane - h.lane;
     if (ds < 2.6 && dl * dir > 0 && Math.abs(dl) < 1.2) return true;
