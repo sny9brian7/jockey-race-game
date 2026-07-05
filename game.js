@@ -23,9 +23,9 @@ let START_S = 0, FINISH_S = 0, RACE = null;
 const PLAYER = {
   easeV: 14.2,      // ↓抑え時の目標速度 (m/s)。drainBaseより低い=本当に回復する
   cruiseV: 16.3,    // ニュートラル
-  pushV: 18.0,      // ↑追い時
+  pushV: 18.3,      // ↑追い時
   // ムチ: スタミナを消費して一時加速（回数制限なし）。序盤に使うと掛かる
-  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 19.2,
+  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 19.6,
   drainBase: 14.5,
   accel: 1.15, startAccel: 5.5,
   minLane: 0.6, maxLane: 12, laneSpeed: 2.5
@@ -36,8 +36,8 @@ const STYLES = {
   "大逃げ": { early:  1.6, cruise: 16.8, maxV: 17.15, spurt: 700 },
   "逃げ":   { early:  0.8, cruise: 16.5, maxV: 17.55, spurt: 630 },
   "先行":   { early:  0.4, cruise: 16.35, maxV: 18.2, spurt: 620 },
-  "差し":   { early: -0.4, cruise: 16.22, maxV: 19.0, spurt: 640 },
-  "追込":   { early: -0.8, cruise: 16.10, maxV: 19.8, spurt: 640 }
+  "差し":   { early: -0.4, cruise: 16.22, maxV: 18.95, spurt: 640 },
+  "追込":   { early: -0.8, cruise: 16.10, maxV: 19.65, spurt: 640 }
 };
 
 // spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
@@ -46,91 +46,91 @@ const RACES = [
   {
     title: "1997 天皇賞（春）", course: COURSES.kyotoOut, dist: 3200,
     spdAdj: -0.1, drainK: 0.22, pace: [61, 63], vision: "天皇賞(春) 芝3200m",
-    player: { name: "マヤノトップガン", coat: 0x9a5a2b, mane: 0x6e3c17, silk: 0x2da84f },
+    player: { name: "マヤノトップガン", odds: 3.7, coat: 0x9a5a2b, mane: 0x6e3c17, silk: 0x2da84f },
     rivals: [
-      { name: "サクラローレル",     style: "差し", adj: 0.15, coat: 0x9a5a2b, silk: 0xd23a2e },
-      { name: "マーベラスサンデー", style: "差し", adj: 0.12, coat: 0x6b4423, silk: 0x2b6fdd },
-      { name: "ステージチャンプ",   style: "差し", adj: 0.05, coat: 0x5a3a22, silk: 0xe8c522 },
-      { name: "ローゼンカバリー",   style: "先行", adj: 0.05, coat: 0x3a2c20, silk: 0x8a3fd1 },
-      { name: "ビッグシンボル",     style: "先行", adj: 0.0,  coat: 0x7a5230, silk: 0xe07a20 },
-      { name: "ノーザンポラリス",   style: "逃げ", adj: 0.0,  coat: 0x5f4632, silk: 0x22b8c8 },
-      { name: "ユウセンショウ",     style: "差し", adj: 0.0,  coat: 0x6b4423, silk: 0xe062a8 },
-      { name: "メジロランバダ",     style: "差し", adj: -0.05, coat: 0x5a3a22, silk: 0xf0f0f0 },
-      { name: "エイシンホンコン",   style: "先行", adj: -0.05, coat: 0x6b4423, silk: 0x7fd4ff },
-      { name: "ハギノリアルキング", style: "差し", adj: -0.08, coat: 0x3a2c20, silk: 0x9acd32 },
-      { name: "ポレール",           style: "先行", adj: -0.1, coat: 0x7a5230, silk: 0xb08968 }
+      { name: "サクラローレル",     style: "差し", adj: 0.22, odds: 1.5, coat: 0x9a5a2b, silk: 0xd23a2e },
+      { name: "マーベラスサンデー", style: "差し", adj: 0.15, odds: 4.9, coat: 0x6b4423, silk: 0x2b6fdd },
+      { name: "ステージチャンプ",   style: "差し", adj: 0.05, odds: 18, coat: 0x5a3a22, silk: 0xe8c522 },
+      { name: "ローゼンカバリー",   style: "先行", adj: 0.05, odds: 12, coat: 0x3a2c20, silk: 0x8a3fd1 },
+      { name: "ビッグシンボル",     style: "先行", adj: 0.0,  odds: 45, coat: 0x7a5230, silk: 0xe07a20 },
+      { name: "ノーザンポラリス",   style: "逃げ", adj: 0.0,  odds: 62, coat: 0x5f4632, silk: 0x22b8c8 },
+      { name: "ユウセンショウ",     style: "差し", adj: 0.0,  odds: 26, coat: 0x6b4423, silk: 0xe062a8 },
+      { name: "メジロランバダ",     style: "差し", adj: -0.05, odds: 84, coat: 0x5a3a22, silk: 0xf0f0f0 },
+      { name: "エイシンホンコン",   style: "先行", adj: -0.05, odds: 55, coat: 0x6b4423, silk: 0x7fd4ff },
+      { name: "ハギノリアルキング", style: "差し", adj: -0.08, odds: 39, coat: 0x3a2c20, silk: 0x9acd32 },
+      { name: "ポレール",           style: "先行", adj: -0.1, odds: 93, coat: 0x7a5230, silk: 0xb08968 }
     ]
   },
   {
     title: "1999 有馬記念", course: COURSES.nakayama, dist: 2500,
     spdAdj: 0.0, drainK: 0.29, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
-    player: { name: "グラスワンダー", coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
+    player: { name: "グラスワンダー", odds: 2.8, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
     rivals: [
-      { name: "スペシャルウィーク", style: "差し", adj: 0.18, coat: 0x33281e, silk: 0x2b6fdd },
-      { name: "テイエムオペラオー", style: "先行", adj: 0.12, coat: 0x9a5a2b, silk: 0x2da84f },
-      { name: "ツルマルツヨシ",     style: "先行", adj: 0.08, coat: 0x5a3a22, silk: 0xe8c522 },
-      { name: "メジロブライト",     style: "追込", adj: 0.05, coat: 0x6b4423, silk: 0x8a3fd1 },
-      { name: "ナリタトップロード", style: "先行", adj: 0.05, coat: 0x5a3a22, silk: 0xe07a20 },
-      { name: "ステイゴールド",     style: "差し", adj: 0.02, coat: 0x3a2c20, silk: 0x22b8c8 },
-      { name: "ゴーイングスズカ",   style: "逃げ", adj: 0.0,  coat: 0x7a5230, silk: 0xe062a8 },
-      { name: "ファレノプシス",     style: "差し", adj: -0.02, coat: 0x4a2c17, silk: 0xf0f0f0 },
-      { name: "フサイチエアデール", style: "先行", adj: -0.05, coat: 0x6b4423, silk: 0x7fd4ff },
-      { name: "スエヒロコマンダー", style: "先行", adj: -0.08, coat: 0x5a3a22, silk: 0x9acd32 },
-      { name: "ダイワオーシュウ",   style: "差し", adj: -0.1, coat: 0x7a5230, silk: 0xb08968 }
+      { name: "スペシャルウィーク", style: "差し", adj: 0.22, odds: 3.0, coat: 0x33281e, silk: 0x2b6fdd },
+      { name: "テイエムオペラオー", style: "先行", adj: 0.12, odds: 5.4, coat: 0x9a5a2b, silk: 0x2da84f },
+      { name: "ツルマルツヨシ",     style: "先行", adj: 0.08, odds: 9.8, coat: 0x5a3a22, silk: 0xe8c522 },
+      { name: "メジロブライト",     style: "追込", adj: 0.05, odds: 15, coat: 0x6b4423, silk: 0x8a3fd1 },
+      { name: "ナリタトップロード", style: "先行", adj: 0.05, odds: 12, coat: 0x5a3a22, silk: 0xe07a20 },
+      { name: "ステイゴールド",     style: "差し", adj: 0.02, odds: 21, coat: 0x3a2c20, silk: 0x22b8c8 },
+      { name: "ゴーイングスズカ",   style: "逃げ", adj: 0.0,  odds: 52, coat: 0x7a5230, silk: 0xe062a8 },
+      { name: "ファレノプシス",     style: "差し", adj: -0.02, odds: 24, coat: 0x4a2c17, silk: 0xf0f0f0 },
+      { name: "フサイチエアデール", style: "先行", adj: -0.05, odds: 37, coat: 0x6b4423, silk: 0x7fd4ff },
+      { name: "スエヒロコマンダー", style: "先行", adj: -0.08, odds: 71, coat: 0x5a3a22, silk: 0x9acd32 },
+      { name: "ダイワオーシュウ",   style: "差し", adj: -0.1, odds: 88, coat: 0x7a5230, silk: 0xb08968 }
     ]
   },
   {
     title: "2022 天皇賞（秋）", course: COURSES.tokyo, dist: 2000,
     spdAdj: 0.4, drainK: 0.36, pace: [59, 61], vision: "天皇賞(秋) 芝2000m",
-    player: { name: "イクイノックス", coat: 0x26211c, mane: 0x171310, silk: 0x1c3f99 },
+    player: { name: "イクイノックス", odds: 2.6, coat: 0x26211c, mane: 0x171310, silk: 0x1c3f99 },
     rivals: [
-      { name: "パンサラッサ",   style: "大逃げ", adj: 0.0,   coat: 0x6b4423, silk: 0xd23a2e },
-      { name: "ジャックドール", style: "先行",   adj: 0.1,   coat: 0x5a3a22, silk: 0xe8c522 },
-      { name: "ダノンベルーガ", style: "差し",   adj: 0.1,   coat: 0x5a3a22, silk: 0x2da84f },
-      { name: "シャフリヤール", style: "差し",   adj: 0.15,  coat: 0x352a1e, silk: 0x8a3fd1 },
-      { name: "ジオグリフ",     style: "先行",   adj: 0.0,   coat: 0x6b4423, silk: 0xe07a20 },
-      { name: "マリアエレーナ", style: "差し",   adj: -0.05, coat: 0x7a5230, silk: 0x22b8c8 },
-      { name: "ノースブリッジ", style: "先行",   adj: -0.1,  coat: 0x5f4632, silk: 0xe062a8 },
-      { name: "レイパパレ",     style: "先行",   adj: -0.02, coat: 0x6b4423, silk: 0xf0f0f0 },
-      { name: "バビット",       style: "逃げ",   adj: -0.05, coat: 0x5a3a22, silk: 0x7fd4ff },
-      { name: "ユーバーレーベン", style: "追込", adj: -0.05, coat: 0x3a2c20, silk: 0x9acd32 },
-      { name: "カラテ",         style: "差し",   adj: -0.08, coat: 0x5f4632, silk: 0xb08968 }
+      { name: "パンサラッサ",   style: "大逃げ", adj: 0.0,   odds: 8.9, coat: 0x6b4423, silk: 0xd23a2e },
+      { name: "ジャックドール", style: "先行",   adj: 0.1,   odds: 7.0, coat: 0x5a3a22, silk: 0xe8c522 },
+      { name: "ダノンベルーガ", style: "差し",   adj: 0.12,  odds: 4.9, coat: 0x5a3a22, silk: 0x2da84f },
+      { name: "シャフリヤール", style: "差し",   adj: 0.15,  odds: 5.9, coat: 0x352a1e, silk: 0x8a3fd1 },
+      { name: "ジオグリフ",     style: "先行",   adj: 0.0,   odds: 14, coat: 0x6b4423, silk: 0xe07a20 },
+      { name: "マリアエレーナ", style: "差し",   adj: -0.05, odds: 21, coat: 0x7a5230, silk: 0x22b8c8 },
+      { name: "ノースブリッジ", style: "先行",   adj: -0.1,  odds: 42, coat: 0x5f4632, silk: 0xe062a8 },
+      { name: "レイパパレ",     style: "先行",   adj: -0.02, odds: 26, coat: 0x6b4423, silk: 0xf0f0f0 },
+      { name: "バビット",       style: "逃げ",   adj: -0.05, odds: 91, coat: 0x5a3a22, silk: 0x7fd4ff },
+      { name: "ユーバーレーベン", style: "追込", adj: -0.05, odds: 58, coat: 0x3a2c20, silk: 0x9acd32 },
+      { name: "カラテ",         style: "差し",   adj: -0.08, odds: 54, coat: 0x5f4632, silk: 0xb08968 }
     ]
   },
   {
     title: "2005 日本ダービー", course: COURSES.tokyo, dist: 2400,
     spdAdj: 0.2, drainK: 0.30, pace: [60, 62], vision: "日本ダービー 芝2400m",
-    player: { name: "ディープインパクト", coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
+    player: { name: "ディープインパクト", odds: 1.1, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
     rivals: [
-      { name: "コンゴウリキシオー", style: "逃げ", adj: 0.0,   coat: 0x9a6a33, silk: 0xd23a2e },
-      { name: "インティライミ",     style: "先行", adj: 0.15,  coat: 0x6b4423, silk: 0x2da84f },
-      { name: "シックスセンス",     style: "差し", adj: 0.12,  coat: 0x352a1e, silk: 0xe8c522 },
-      { name: "アドマイヤフジ",     style: "差し", adj: 0.1,   coat: 0x5a3a22, silk: 0x8a3fd1 },
-      { name: "マイネルレコルト",   style: "先行", adj: 0.05,  coat: 0x7a5230, silk: 0xe07a20 },
-      { name: "ローゼンクロイツ",   style: "差し", adj: 0.05,  coat: 0x3a2c20, silk: 0x22b8c8 },
-      { name: "アドマイヤジャパン", style: "先行", adj: 0.0,   coat: 0x5f4632, silk: 0xe062a8 },
-      { name: "ニシノドコマデ",     style: "差し", adj: -0.02, coat: 0x7a5230, silk: 0xf0f0f0 },
-      { name: "ペールギュント",     style: "差し", adj: -0.05, coat: 0x5f4632, silk: 0x7fd4ff },
-      { name: "シャドウゲイト",     style: "先行", adj: -0.05, coat: 0x6b4423, silk: 0x9acd32 },
-      { name: "ダンスインザモア",   style: "先行", adj: -0.08, coat: 0x5a3a22, silk: 0xb08968 }
+      { name: "コンゴウリキシオー", style: "逃げ", adj: 0.0,   odds: 33, coat: 0x9a6a33, silk: 0xd23a2e },
+      { name: "インティライミ",     style: "先行", adj: 0.15,  odds: 14, coat: 0x6b4423, silk: 0x2da84f },
+      { name: "シックスセンス",     style: "差し", adj: 0.12,  odds: 9.8, coat: 0x352a1e, silk: 0xe8c522 },
+      { name: "アドマイヤフジ",     style: "差し", adj: 0.1,   odds: 20, coat: 0x5a3a22, silk: 0x8a3fd1 },
+      { name: "マイネルレコルト",   style: "先行", adj: 0.05,  odds: 25, coat: 0x7a5230, silk: 0xe07a20 },
+      { name: "ローゼンクロイツ",   style: "差し", adj: 0.05,  odds: 7.1, coat: 0x3a2c20, silk: 0x22b8c8 },
+      { name: "アドマイヤジャパン", style: "先行", adj: 0.0,   odds: 12, coat: 0x5f4632, silk: 0xe062a8 },
+      { name: "ニシノドコマデ",     style: "差し", adj: -0.02, odds: 61, coat: 0x7a5230, silk: 0xf0f0f0 },
+      { name: "ペールギュント",     style: "差し", adj: -0.05, odds: 46, coat: 0x5f4632, silk: 0x7fd4ff },
+      { name: "シャドウゲイト",     style: "先行", adj: -0.05, odds: 82, coat: 0x6b4423, silk: 0x9acd32 },
+      { name: "ダンスインザモア",   style: "先行", adj: -0.08, odds: 94, coat: 0x5a3a22, silk: 0xb08968 }
     ]
   },
   {
     title: "1990 安田記念", course: COURSES.tokyo, dist: 1600,
     spdAdj: 0.9, drainK: 0.45, pace: [57.5, 59.5], vision: "安田記念 芝1600m",
-    player: { name: "オグリキャップ", coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
+    player: { name: "オグリキャップ", odds: 1.4, coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
     rivals: [
-      { name: "ケープポイント",   style: "逃げ", adj: -0.05, coat: 0x6b4423, silk: 0x2b6fdd },
-      { name: "ヤエノムテキ",     style: "先行", adj: 0.15,  coat: 0x5a3a22, silk: 0x2da84f },
-      { name: "オサイチジョージ", style: "先行", adj: 0.1,   coat: 0x8b5a2b, silk: 0xe8c522 },
-      { name: "バンブーメモリー", style: "差し", adj: 0.05,  coat: 0x3a2c20, silk: 0x8a3fd1 },
-      { name: "シンウインド",     style: "差し", adj: 0.05,  coat: 0x7a5230, silk: 0xe07a20 },
-      { name: "ホクトヘリオス",   style: "先行", adj: 0.0,   coat: 0x5a3a22, silk: 0x22b8c8 },
-      { name: "コガネターボ",     style: "差し", adj: -0.05, coat: 0x6b4423, silk: 0xe062a8 },
-      { name: "リンドホシ",       style: "差し", adj: -0.05, coat: 0x7a5230, silk: 0xf0f0f0 },
-      { name: "ジュネーブシンボリ", style: "先行", adj: -0.05, coat: 0x5a3a22, silk: 0x7fd4ff },
-      { name: "メジロモニカ",     style: "差し", adj: -0.08, coat: 0x6b4423, silk: 0x9acd32 },
-      { name: "イズミサンシャイン", style: "先行", adj: -0.1, coat: 0x3a2c20, silk: 0xb08968 }
+      { name: "ケープポイント",   style: "逃げ", adj: -0.05, odds: 44, coat: 0x6b4423, silk: 0x2b6fdd },
+      { name: "ヤエノムテキ",     style: "先行", adj: 0.15,  odds: 8.4, coat: 0x5a3a22, silk: 0x2da84f },
+      { name: "オサイチジョージ", style: "先行", adj: 0.1,   odds: 6.9, coat: 0x8b5a2b, silk: 0xe8c522 },
+      { name: "バンブーメモリー", style: "差し", adj: 0.05,  odds: 4.8, coat: 0x3a2c20, silk: 0x8a3fd1 },
+      { name: "シンウインド",     style: "差し", adj: 0.05,  odds: 29, coat: 0x7a5230, silk: 0xe07a20 },
+      { name: "ホクトヘリオス",   style: "先行", adj: 0.0,   odds: 24, coat: 0x5a3a22, silk: 0x22b8c8 },
+      { name: "コガネターボ",     style: "差し", adj: -0.05, odds: 49, coat: 0x6b4423, silk: 0xe062a8 },
+      { name: "リンドホシ",       style: "差し", adj: -0.05, odds: 63, coat: 0x7a5230, silk: 0xf0f0f0 },
+      { name: "ジュネーブシンボリ", style: "先行", adj: -0.05, odds: 72, coat: 0x5a3a22, silk: 0x7fd4ff },
+      { name: "メジロモニカ",     style: "差し", adj: -0.08, odds: 85, coat: 0x6b4423, silk: 0x9acd32 },
+      { name: "イズミサンシャイン", style: "先行", adj: -0.1, odds: 96, coat: 0x3a2c20, silk: 0xb08968 }
     ]
   }
 ];
@@ -529,11 +529,12 @@ function initRace(raceIdx) {
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
       reaction: 0.08 + Math.random() * 0.3,
-      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) + 0.12 - (demo ? 0.32 : 0) : 0,
-      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) + 0.12 - (demo ? 0.32 : 0) : 0,
+      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) + 0.03 - (demo ? 0.32 : 0) : 0,
+      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) + 0.03 - (demo ? 0.32 : 0) : 0,
       early: st ? st.early : 0,
       spurt: st ? st.spurt * (0.75 + RACE.dist / 6400) + rnd(40) : 0,
       wob: Math.random() * 10,
+      nextMove: 2 + Math.random() * 6, drift: null, atkLane: 0,
       mesh: null
     };
     if (!isPlayer) {
@@ -543,6 +544,13 @@ function initRace(raceIdx) {
     horses.push(h);
   }
   pl = horses[0];
+
+  // スパート時の攻め進路を全幅に分散（直線で馬群がばらける）
+  {
+    const lanes = [0.8, 1.9, 3.0, 4.1, 5.2, 6.3, 7.4, 8.5, 9.6, 10.7, 11.8];
+    shuffle(lanes);
+    for (let i = 1; i < N; i++) horses[i].atkLane = lanes[i - 1];
+  }
 
   fpCoatMat.color.setHex(RACE.player.coat);
   fpManeMat.color.setHex(RACE.player.mane);
@@ -791,9 +799,31 @@ function updateHorse(h, dt) {
   if (!h.isPlayer) {
     const t = Math.min(1, raceTime / 20);
     h.targetLane = h.startLane + (1.1 + h.idx * 0.3 - h.startLane) * t;
+    if (rem >= h.spurt) {
+      // 道中: ときどき進路を変えて壁/スリップを取りに行く（馬群が動く）
+      if (raceTime > h.nextMove) {
+        h.nextMove = raceTime + 4 + Math.random() * 6;
+        if (!h.slip && Math.random() < 0.55) {
+          let best = null;
+          for (let i = 0; i < horses.length; i++) {
+            const o = horses[i];
+            if (o === h) continue;
+            const ds = o.s - h.s;
+            if (ds > 3 && ds < 16 && (!best || ds < best.s - h.s)) best = o;
+          }
+          h.drift = best ? best.lane : h.lane + (Math.random() * 2 - 1) * 1.8;
+        } else {
+          h.drift = Math.random() < 0.35 ? h.lane + (Math.random() * 2 - 1) * 1.5 : null;
+        }
+      }
+      if (h.drift != null) h.targetLane = Math.max(0.6, Math.min(11.8, h.drift));
+    } else {
+      // スパート: 割り当てられた攻め進路へ → 直線で馬群がばらける
+      h.targetLane = h.atkLane;
+    }
     if (h.blocked) h.blockT += dt; else h.blockT = Math.max(0, h.blockT - dt);
-    if (h.blockT > 0.8) { h.targetLane = Math.min(11, h.lane + 1.8); h.blockT = 0; }
-    if (rem < h.spurt && h.blocked) h.targetLane = Math.min(11, h.lane + 2.0);
+    if (h.blockT > 0.8) { h.targetLane = Math.min(11, h.lane + 1.8); h.drift = h.targetLane; h.blockT = 0; }
+    if (rem < h.spurt && h.blocked) h.targetLane = Math.min(11.8, h.lane + 2.0);
     const dl = h.targetLane - h.lane;
     const step = Math.max(-1.4 * dt, Math.min(1.4 * dt, dl));
     if (step !== 0 && !sideBlocked(h, Math.sign(step))) h.lane += step;
@@ -1027,17 +1057,10 @@ const WAKU_BG = ["", "#ffffff", "#222222", "#d63333", "#2255cc", "#e8c522", "#2d
 const WAKU_FG = ["", "#000", "#fff", "#fff", "#fff", "#000", "#fff", "#fff", "#000"];
 
 function buildEntryTable() {
-  // 単勝オッズ: 各馬の能力(当日の調子込み)からソフトマックスで勝率→オッズ化
-  const str = horses.map(function (h) { return h.isPlayer ? 0 : (h.cruise + h.maxV) / 2; });
-  let maxAI = -1e9;
-  for (let i = 1; i < horses.length; i++) maxAI = Math.max(maxAI, str[i]);
-  str[0] = maxAI + 0.02;   // 騎乗馬は最有力評価
-  const smax = Math.max.apply(null, str);
-  const ps = str.map(function (s) { return Math.exp(8 * (s - smax)); });
-  let psum = 0;
-  ps.forEach(function (p) { psum += p; });
-  horses.forEach(function (h, i) {
-    h.odds = Math.min(99.9, Math.max(1.2, 0.8 / (ps[i] / psum)));
+  // 単勝オッズ: 史実の値(判明分)+当時の人気に沿った推定値をデータから使用
+  horses.forEach(function (h) {
+    const e = h.isPlayer ? RACE.player : RACE.rivals[h.idx - 1];
+    h.odds = e.odds;
   });
   const byOdds = horses.slice().sort(function (a, b) { return a.odds - b.odds; });
   horses.forEach(function (h) { h.pop = byOdds.indexOf(h) + 1; });
