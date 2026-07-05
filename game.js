@@ -25,7 +25,7 @@ const PLAYER = {
   cruiseV: 16.3,    // ニュートラル
   pushV: 18.4,      // ↑追い時（残スタミナが多いとさらに伸びる）
   // ムチ: スタミナを消費して一時加速（回数制限なし）。序盤に使うと掛かる
-  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 19.6,
+  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 20.4,
   drainBase: 14.5,
   accel: 1.15, startAccel: 5.5,
   minLane: 0.6, maxLane: 12, laneSpeed: 2.5
@@ -33,12 +33,14 @@ const PLAYER = {
 // 脚質: early=序盤の上乗せ(隊列形成), spurt=残り何mでスパート
 // 道中は後方脚質ほど巡航が僅かに速く、開いた差がじわじわ縮んで3〜4角で凝縮する。
 // スパートは末脚(maxV)+残スタミナ変換で決着 → 直線で順位が入れ替わる
+// 基礎maxVの差は小さく、残スタミナ変換(stamKick, 最大+1.8)が末脚の主役。
+// 脚を溜めた馬はバテた先行勢より3〜4m/s速い状態で直線に飛んでくる
 const STYLES = {
-  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 18.0, spurt: 700 },
-  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 18.05, spurt: 650 },
-  "先行":   { early:  0.3, cruise: 16.27, maxV: 18.3, spurt: 640 },
-  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.75, spurt: 650 },
-  "追込":   { early: -0.35, cruise: 16.5, maxV: 18.95, spurt: 630 }
+  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 17.9, spurt: 700 },
+  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 18.0, spurt: 650 },
+  "先行":   { early:  0.3, cruise: 16.27, maxV: 18.15, spurt: 640 },
+  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.4, spurt: 650 },
+  "追込":   { early: -0.35, cruise: 16.5, maxV: 18.55, spurt: 630 }
 };
 
 // spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
@@ -713,8 +715,8 @@ function updateHorse(h, dt) {
   const raced = h.s - START_S;
   let tv;
 
-  // 残スタミナが多いほど末脚が伸びる（道中で溜めた脚の変換）
-  const stamKick = Math.max(0, Math.min(0.9, (h.stamina - 32) * 0.025));
+  // 残スタミナが多いほど末脚が伸びる（道中で溜めた脚の変換・最大+1.8）
+  const stamKick = Math.max(0, Math.min(1.8, (h.stamina - 28) * 0.045));
   if (h.isPlayer) {
     tv = PLAYER.cruiseV + RACE.spdAdj;
     if (down("ArrowUp", "KeyW")) tv = PLAYER.pushV + RACE.spdAdj + (rem < 900 ? stamKick : 0);
