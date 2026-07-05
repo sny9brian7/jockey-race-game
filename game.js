@@ -34,11 +34,11 @@ const PLAYER = {
 // 道中は後方脚質ほど巡航が僅かに速く、開いた差がじわじわ縮んで3〜4角で凝縮する。
 // スパートは末脚(maxV)+残スタミナ変換で決着 → 直線で順位が入れ替わる
 const STYLES = {
-  "大逃げ": { early:  1.4, cruise: 16.15, maxV: 18.0, spurt: 700 },
-  "逃げ":   { early:  0.7, cruise: 16.2, maxV: 18.1, spurt: 650 },
-  "先行":   { early:  0.35, cruise: 16.27, maxV: 18.35, spurt: 640 },
-  "差し":   { early: -0.25, cruise: 16.38, maxV: 18.6, spurt: 640 },
-  "追込":   { early: -0.5, cruise: 16.45, maxV: 18.8, spurt: 620 }
+  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 18.0, spurt: 700 },
+  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 18.05, spurt: 650 },
+  "先行":   { early:  0.3, cruise: 16.27, maxV: 18.3, spurt: 640 },
+  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.75, spurt: 650 },
+  "追込":   { early: -0.35, cruise: 16.5, maxV: 18.95, spurt: 630 }
 };
 
 // spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
@@ -781,8 +781,21 @@ function updateHorse(h, dt) {
   h.blocked = false;
   if (near.block && h.v > near.block.v) {
     const gap = near.block.s - h.s;
-    h.v = Math.min(h.v, near.block.v * (gap < 2.8 ? 0.97 : 1.0));
+    let capV = near.block.v * (gap < 2.8 ? 0.97 : 1.0);
+    if (raced < 150) capV = Math.max(capV, 7);   // スタート直後に0km/hへ張り付かない
+    h.v = Math.min(h.v, capV);
     h.blocked = true;
+  }
+
+  // 重なり解消: ほぼ同じ位置に重なった馬は横に押し出される
+  for (let i = 0; i < horses.length; i++) {
+    const o = horses[i];
+    if (o === h) continue;
+    if (Math.abs(o.s - h.s) < 1.6 && Math.abs(o.lane - h.lane) < 0.7) {
+      h.lane += (h.lane >= o.lane ? 1 : -1) * 1.2 * dt;
+      h.lane = Math.max(0.3, Math.min(12.5, h.lane));
+      break;
+    }
   }
 
   // スタミナ。テン(序盤)を飛ばすと余計に消耗する = 逃げのリスク
