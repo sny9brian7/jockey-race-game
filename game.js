@@ -777,14 +777,17 @@ function updateHorse(h, dt) {
   if (h.v < tv) h.v = Math.min(tv, h.v + acc * dt);
   else h.v = Math.max(tv, h.v - 1.8 * dt);
 
-  // 前が壁なら同速で追走（2.8m以内まで詰まった時だけ軽くブレーキ）
+  // 前が壁なら同速まで減速して追走。急ブレーキではなく、車間が近いほど強い減速率で近づける
   h.blocked = false;
   if (near.block && h.v > near.block.v) {
     const gap = near.block.s - h.s;
     let capV = near.block.v * (gap < 2.8 ? 0.97 : 1.0);
     if (raced < 150) capV = Math.max(capV, 7);   // スタート直後に0km/hへ張り付かない
-    h.v = Math.min(h.v, capV);
-    h.blocked = true;
+    const brake = gap < 1.6 ? 30 : gap < 2.6 ? 8 : 3.5;   // m/s^2
+    if (h.v > capV) {
+      h.v = Math.max(capV, h.v - brake * dt);
+      h.blocked = true;
+    }
   }
 
   // 重なり解消: ほぼ同じ位置に重なった馬は横に押し出される
