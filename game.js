@@ -23,21 +23,22 @@ let START_S = 0, FINISH_S = 0, RACE = null;
 const PLAYER = {
   easeV: 14.2,      // ↓抑え時の目標速度 (m/s)。drainBaseより低い=本当に回復する
   cruiseV: 16.3,    // ニュートラル
-  pushV: 18.3,      // ↑追い時
+  pushV: 18.4,      // ↑追い時（残スタミナが多いとさらに伸びる）
   // ムチ: スタミナを消費して一時加速（回数制限なし）。序盤に使うと掛かる
   whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 19.6,
   drainBase: 14.5,
   accel: 1.15, startAccel: 5.5,
   minLane: 0.6, maxLane: 12, laneSpeed: 2.5
 };
-// 脚質: early=序盤の上乗せ, spurt=残り何mでスパート
-// 東京の長い直線(525m)を想定し、差し・追込の末脚を強めに設定
+// 脚質: early=序盤の上乗せ(隊列形成), spurt=残り何mでスパート
+// 道中は後方脚質ほど巡航が僅かに速く、開いた差がじわじわ縮んで3〜4角で凝縮する。
+// スパートは末脚(maxV)+残スタミナ変換で決着 → 直線で順位が入れ替わる
 const STYLES = {
-  "大逃げ": { early:  1.6, cruise: 16.8, maxV: 17.15, spurt: 700 },
-  "逃げ":   { early:  0.8, cruise: 16.5, maxV: 17.55, spurt: 630 },
-  "先行":   { early:  0.4, cruise: 16.35, maxV: 18.2, spurt: 620 },
-  "差し":   { early: -0.4, cruise: 16.22, maxV: 18.95, spurt: 640 },
-  "追込":   { early: -0.8, cruise: 16.10, maxV: 19.65, spurt: 640 }
+  "大逃げ": { early:  1.4, cruise: 16.15, maxV: 18.0, spurt: 700 },
+  "逃げ":   { early:  0.7, cruise: 16.2, maxV: 18.1, spurt: 650 },
+  "先行":   { early:  0.35, cruise: 16.27, maxV: 18.35, spurt: 640 },
+  "差し":   { early: -0.25, cruise: 16.38, maxV: 18.6, spurt: 640 },
+  "追込":   { early: -0.5, cruise: 16.45, maxV: 18.8, spurt: 620 }
 };
 
 // spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
@@ -525,7 +526,7 @@ function initRace(raceIdx) {
       s: START_S - 2, v: 0, lane: 0.8 + gate * 1.15, targetLane: 0.8 + gate * 1.15,
       startLane: 0.8 + gate * 1.15, gate: gate,
       stamina: 100, exhausted: false, phase: Math.random() * 6,
-      kakari: isPlayer ? 0.45 : 0.2 + Math.random() * 0.25,
+      kakari: isPlayer ? 0.25 : 0.2 + Math.random() * 0.25,
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
       reaction: 0.08 + Math.random() * 0.3,
@@ -559,8 +560,8 @@ function initRace(raceIdx) {
   elDist.textContent = RACE.dist;
   whipTimer = whipCdTimer = whipAnim = 0;
   kakariWarned = false;
-  // レースごとにペースが振れる(±0.4m/s) → ハイ/ミドル/スローが発生する
-  paceBias = (Math.random() * 2 - 1) * 0.4;
+  // レースごとにペースが振れる(±0.3m/s) → ハイ/ミドル/スローが発生する
+  paceBias = (Math.random() * 2 - 1) * 0.3;
   if (demo) paceBias = 0;   // デモはミドルペース固定
 }
 
@@ -712,9 +713,11 @@ function updateHorse(h, dt) {
   const raced = h.s - START_S;
   let tv;
 
+  // 残スタミナが多いほど末脚が伸びる（道中で溜めた脚の変換）
+  const stamKick = Math.max(0, Math.min(0.9, (h.stamina - 32) * 0.025));
   if (h.isPlayer) {
     tv = PLAYER.cruiseV + RACE.spdAdj;
-    if (down("ArrowUp", "KeyW")) tv = PLAYER.pushV + RACE.spdAdj;
+    if (down("ArrowUp", "KeyW")) tv = PLAYER.pushV + RACE.spdAdj + (rem < 900 ? stamKick : 0);
     if (down("ArrowDown", "KeyS")) tv = PLAYER.easeV + RACE.spdAdj;
     if (whipTimer > 0) tv = Math.min(PLAYER.whipCap + RACE.spdAdj, tv + PLAYER.whipBoost);
   } else {
@@ -722,7 +725,7 @@ function updateHorse(h, dt) {
     if (raced < 400) tv = h.cruise + h.early + paceBias;
     // 中弛み: 道中でペースが波打ち、馬群が縮んだり伸びたりする
     if (raced > 700 && rem > h.spurt + 250 && Math.sin((raced - 700) / 180) > 0.1) tv -= 0.35;
-    if (rem < h.spurt) tv = h.maxV;
+    if (rem < h.spurt) tv = h.maxV + stamKick;
     tv += Math.sin(raceTime * 0.7 + h.wob) * 0.15;
   }
 
@@ -744,7 +747,8 @@ function updateHorse(h, dt) {
         // 序盤450mの位置取りダッシュは掛からない（テンに出すのは折り合いと別）
         if (down("ArrowUp", "KeyW") && raced > 450) dk += 0.25;
         if (whipTimer > 0) dk += 0.28;
-        if (down("ArrowDown", "KeyS")) dk += 0.38; // 強く手綱を引くとハミを噛んで余計に掛かる
+        // 強く手綱を引くとハミを噛んで余計に掛かる（序盤の位置取りの抑えは対象外）
+        if (down("ArrowDown", "KeyS") && raced > 450) dk += 0.38;
       }
       const lone = !h.isPlayer && h.early > 0.5;   // 逃げ系は単騎でも折り合える
       if (!near.cover && !lone) dk += 0.16;        // 前が開いていると行きたがる
@@ -765,18 +769,19 @@ function updateHorse(h, dt) {
     if (h.isPlayer && h.kakari < 0.5) kakariWarned = false;
   }
 
-  // スタミナが減ると脚色が鈍る（ソフトなバテ）。前で消耗した馬は直線で捕まる
-  if (h.stamina < 25) tv = Math.min(tv, 13.6 + RACE.spdAdj + h.stamina * 0.2);
+  // スタミナが減ると脚色が鈍る（ソフトなバテ・下限つき）。前で消耗した馬は直線で捕まる
+  if (h.stamina < 15) tv = Math.min(tv, Math.max(15.2 + RACE.spdAdj, 13.6 + RACE.spdAdj + h.stamina * 0.3));
 
   // 加減速
   const acc = h.v < 12 ? PLAYER.startAccel : PLAYER.accel;
   if (h.v < tv) h.v = Math.min(tv, h.v + acc * dt);
   else h.v = Math.max(tv, h.v - 1.8 * dt);
 
-  // 前が壁なら詰まる
+  // 前が壁なら同速で追走（2.8m以内まで詰まった時だけ軽くブレーキ）
   h.blocked = false;
   if (near.block && h.v > near.block.v) {
-    h.v = Math.min(h.v, near.block.v * 0.985);
+    const gap = near.block.s - h.s;
+    h.v = Math.min(h.v, near.block.v * (gap < 2.8 ? 0.97 : 1.0));
     h.blocked = true;
   }
 
@@ -784,6 +789,7 @@ function updateHorse(h, dt) {
   let drain = Math.max(0, h.v - PLAYER.drainBase - RACE.spdAdj) * RACE.drainK;
   if (raced < 400) drain *= 1.2;
   if (h.slip) drain *= 0.6;
+  else if (h.cover) drain *= 0.8;   // 壁があるだけでも風よけになる
   // 掛かりの代償（全馬）: ゲージ半分を超えると消耗が増え、深いほど重くなる(最大+80%)
   if (h.kakari > 0.5) drain *= 1 + (h.kakari - 0.5) * 1.6;
   // ペース補正: ハイペースは前の馬に重く、スローは前の馬に軽い（1000m通過時に決定）
@@ -813,7 +819,7 @@ function updateHorse(h, dt) {
           }
           h.drift = best ? best.lane : h.lane + (Math.random() * 2 - 1) * 1.8;
         } else {
-          h.drift = Math.random() < 0.35 ? h.lane + (Math.random() * 2 - 1) * 1.5 : null;
+          h.drift = Math.random() < 0.15 ? h.lane + (Math.random() * 2 - 1) * 1.5 : null;
         }
       }
       if (h.drift != null) h.targetLane = Math.max(0.6, Math.min(11.8, h.drift));
@@ -999,7 +1005,7 @@ function updateHUD(dt) {
             for (let i = 0; i < horses.length; i++) {
               const o = horses[i];
               const r = rankOf(o);
-              o.paceMul = r <= 5 ? (eff > 0 ? 1.18 : 0.85) : (eff > 0 ? 0.97 : 1.03);
+              o.paceMul = r <= 5 ? (eff > 0 ? 1.12 : 0.90) : (eff > 0 ? 0.98 : 1.02);
             }
             if (eff > 0) showMsg("1000m通過 " + t1000.toFixed(1) + "秒 — ハイペース！ 前は苦しい", 2.6);
           }
