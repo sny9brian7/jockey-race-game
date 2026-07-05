@@ -36,8 +36,8 @@ const STYLES = {
   "大逃げ": { early:  1.6, cruise: 16.8, maxV: 17.15, spurt: 700 },
   "逃げ":   { early:  0.8, cruise: 16.5, maxV: 17.55, spurt: 630 },
   "先行":   { early:  0.4, cruise: 16.35, maxV: 18.2, spurt: 620 },
-  "差し":   { early: -0.4, cruise: 16.22, maxV: 18.85, spurt: 620 },
-  "追込":   { early: -0.8, cruise: 16.10, maxV: 19.6, spurt: 615 }
+  "差し":   { early: -0.4, cruise: 16.22, maxV: 19.0, spurt: 640 },
+  "追込":   { early: -0.8, cruise: 16.10, maxV: 19.8, spurt: 640 }
 };
 
 // spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
@@ -743,6 +743,7 @@ function updateHorse(h, dt) {
       if (h.blocked) dk += h.isPlayer ? 0.30 : 0.15; // 詰まると引っ掛かる(AI騎手は捌く)
       if (h.slip) dk -= 0.08;
     }
+    if (raced < 300 && dk > 0) dk = 0;   // 最初の300mは掛かりが進行しない
     if (demo && h.isPlayer) dk = -0.6;   // デモ騎手は折り合い完璧の想定
     h.kakari = Math.max(0, Math.min(1, h.kakari + dk * dt));
     if (h.kakari > 0.5) {
@@ -878,7 +879,7 @@ function showResult() {
 
 // ==== カメラ ====
 function updateCamera(dt) {
-  if (!pl) {
+  if (!pl || state === "title") {
     // タイトル画面: スタンド上空からコースを見渡す
     const t = performance.now() * 0.00008;
     camera.position.set(HALF * 0.5 + Math.sin(t) * 45, 24, DIR * (R + 58));
@@ -1020,10 +1021,48 @@ function animate(now) {
   renderer.render(scene, camera);
 }
 
+// ==== 出馬表・オッズ ====
+function wakuOf(bn) { return bn <= 4 ? bn : 4 + Math.ceil((bn - 4) / 2); }
+const WAKU_BG = ["", "#ffffff", "#222222", "#d63333", "#2255cc", "#e8c522", "#2da84f", "#e07220", "#e88ab0"];
+const WAKU_FG = ["", "#000", "#fff", "#fff", "#fff", "#000", "#fff", "#fff", "#000"];
+
+function buildEntryTable() {
+  // 単勝オッズ: 各馬の能力(当日の調子込み)からソフトマックスで勝率→オッズ化
+  const str = horses.map(function (h) { return h.isPlayer ? 0 : (h.cruise + h.maxV) / 2; });
+  let maxAI = -1e9;
+  for (let i = 1; i < horses.length; i++) maxAI = Math.max(maxAI, str[i]);
+  str[0] = maxAI + 0.02;   // 騎乗馬は最有力評価
+  const smax = Math.max.apply(null, str);
+  const ps = str.map(function (s) { return Math.exp(8 * (s - smax)); });
+  let psum = 0;
+  ps.forEach(function (p) { psum += p; });
+  horses.forEach(function (h, i) {
+    h.odds = Math.min(99.9, Math.max(1.2, 0.8 / (ps[i] / psum)));
+  });
+  const byOdds = horses.slice().sort(function (a, b) { return a.odds - b.odds; });
+  horses.forEach(function (h) { h.pop = byOdds.indexOf(h) + 1; });
+
+  const list = horses.slice().sort(function (a, b) { return a.gate - b.gate; });
+  let html = "<tr><th>枠</th><th>馬番</th><th>馬名</th><th>脚質</th><th>単勝</th><th>人気</th></tr>";
+  list.forEach(function (h) {
+    const bn = h.gate + 1, w = wakuOf(bn);
+    html += "<tr" + (h.isPlayer ? ' class="me"' : "") + ">" +
+      '<td><span class="waku" style="background:' + WAKU_BG[w] + ";color:" + WAKU_FG[w] + '">' + w + "</span></td>" +
+      "<td>" + bn + "</td>" +
+      '<td><span class="silk" style="background:#' + h.silk.toString(16).padStart(6, "0") + '"></span>' +
+      h.name + (h.isPlayer ? "（騎乗）" : "") + "</td>" +
+      "<td>" + h.style + "</td>" +
+      "<td>" + h.odds.toFixed(1) + "</td>" +
+      "<td>" + h.pop + "人気</td></tr>";
+  });
+  $("entryTable").innerHTML = html;
+  $("entryTitle").textContent = RACE.title + " 出馬表";
+  $("entryCourse").textContent = RACE.course.name + " " + RACE.dist + "m ／ 12頭";
+}
+
 // ==== 開始処理 ====
-function startRace(idx) {
-  initRace(idx);
-  $("title").classList.add("hidden");
+function beginRace() {
+  $("entry").classList.add("hidden");
   elCount.classList.remove("hidden");
   state = "count";
   countT = 3.5;
@@ -1031,17 +1070,26 @@ function startRace(idx) {
 document.querySelectorAll(".raceBtn").forEach(function (btn) {
   btn.addEventListener("click", function () {
     if (state !== "title") return;
-    startRace(Number(btn.dataset.race));
+    initRace(Number(btn.dataset.race));
+    $("title").classList.add("hidden");
+    buildEntryTable();
+    $("entry").classList.remove("hidden");
   });
+});
+$("gateBtn").addEventListener("click", function () {
+  if (state !== "title") return;
+  beginRace();
 });
 $("demoBtn").addEventListener("click", function (e) {
   e.stopPropagation();
   if (state !== "title") return;
   demo = true;
-  startRace(2);   // 2022 天皇賞（秋）
+  initRace(2);   // 2022 天皇賞（秋）
   pl.reaction = 0.05;              // デモはスタートを決める
   elDemoTip.style.display = "block";
   setTip("スタートを待つ…");
+  $("title").classList.add("hidden");
+  beginRace();
 });
 $("retryBtn").addEventListener("click", function () { location.reload(); });
 

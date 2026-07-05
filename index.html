@@ -75,6 +75,9 @@
   table.res th, table.res td { padding: 3px 12px; border-bottom: 1px solid rgba(255,255,255,.25); }
   table.res tr.me { color: #ffe14d; font-weight: bold; }
   .silk { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  #entry { background: rgba(0,10,25,.85); }
+  .waku { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center;
+    border-radius: 4px; font-weight: bold; font-size: 13px; border: 1px solid rgba(255,255,255,.4); }
 
   #err { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
     color: #fff; background: #300; font-size: 18px; padding: 30px; text-align: center; }
@@ -157,6 +160,13 @@
     序盤は脚をためて、最終直線でスパートするのがセオリー。<br>
     前の馬の真後ろにつくとスリップストリームで消耗が減る。
   </p>
+</div>
+
+<div id="entry" class="overlay hidden">
+  <h2 id="entryTitle" style="font-size:28px; margin-bottom:4px"></h2>
+  <p id="entryCourse" style="font-size:14px; opacity:.85; margin-bottom:14px"></p>
+  <table class="res" id="entryTable"></table>
+  <button id="gateBtn">ゲートイン（レース開始）</button>
 </div>
 
 <div id="count" class="overlay hidden"></div>
