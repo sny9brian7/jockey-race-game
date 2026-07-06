@@ -36,11 +36,11 @@ const PLAYER = {
 // 基礎maxVの差は小さく、残スタミナ変換(stamKick, 最大+1.8)が末脚の主役。
 // 脚を溜めた馬はバテた先行勢より3〜4m/s速い状態で直線に飛んでくる
 const STYLES = {
-  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 17.85, spurt: 700 },
-  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 17.95, spurt: 650 },
-  "先行":   { early:  0.3, cruise: 16.27, maxV: 17.95, spurt: 640 },
-  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.85, spurt: 680 },
-  "追込":   { early: -0.35, cruise: 16.5, maxV: 19.05, spurt: 670 }
+  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 17.95, spurt: 700 },
+  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 18.05, spurt: 650 },
+  "先行":   { early:  0.3, cruise: 16.27, maxV: 18.15, spurt: 640 },
+  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.35, spurt: 660 },
+  "追込":   { early: -0.35, cruise: 16.5, maxV: 18.45, spurt: 650 }
 };
 
 // spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
@@ -550,7 +550,7 @@ function initRace(raceIdx) {
 
   // スパート時の攻め進路を全幅に分散（直線で馬群がばらける）
   {
-    const lanes = [0.8, 1.9, 3.0, 4.1, 5.2, 6.3, 7.4, 8.5, 9.6, 10.7, 11.8];
+    const lanes = [0.8, 1.7, 2.6, 3.5, 4.4, 5.3, 6.2, 7.1, 8.0, 8.9, 9.8];
     shuffle(lanes);
     for (let i = 1; i < N; i++) horses[i].atkLane = lanes[i - 1];
   }
@@ -688,6 +688,7 @@ function drawMinimap() {
 let state = "title";   // title | count | race | result
 let countT = 0, raceTime = 0, resultTimer = -1;
 let paceBias = 0;      // レースごとのペースの振れ（AI全体に加算）
+let leadS = 0;         // 未ゴール馬の先頭位置（集団収束の基準）
 
 function nearAhead(h) {
   let bestBlock = null, bestSlip = null, cover = false;
@@ -715,12 +716,15 @@ function updateHorse(h, dt) {
   const raced = h.s - START_S;
   let tv;
 
-  // 残スタミナが多いほど末脚が伸びる（道中で溜めた脚の変換・最大+1.8）
-  const stamKick = Math.max(0, Math.min(1.8, (h.stamina - 28) * 0.045));
+  // 残スタミナが多いほど末脚が伸びる（道中で溜めた脚の変換・最大+1.0）
+  const stamKick = Math.max(0, Math.min(1.0, (h.stamina - 28) * 0.03));
+  // 集団収束: 前と離れているほど脚を使って追走する → 馬群が千切れず、終いは後方から飛んでくる
+  const chase = Math.min(2.2, Math.max(0, (leadS - h.s) * 0.02));
   if (h.isPlayer) {
     tv = PLAYER.cruiseV + RACE.spdAdj;
     if (down("ArrowUp", "KeyW")) tv = PLAYER.pushV + RACE.spdAdj + (rem < 900 ? stamKick : 0);
     if (down("ArrowDown", "KeyS")) tv = PLAYER.easeV + RACE.spdAdj;
+    tv += rem < 900 ? chase : chase * 0.6;
     if (whipTimer > 0) tv = Math.min(PLAYER.whipCap + RACE.spdAdj, tv + PLAYER.whipBoost);
   } else {
     tv = h.cruise + paceBias;
@@ -728,6 +732,7 @@ function updateHorse(h, dt) {
     // 中弛み: 道中でペースが波打ち、馬群が縮んだり伸びたりする
     if (raced > 700 && rem > h.spurt + 250 && Math.sin((raced - 700) / 180) > 0.1) tv -= 0.35;
     if (rem < h.spurt) tv = h.maxV + stamKick;
+    tv += rem < h.spurt ? chase : chase * 0.6;
     tv += Math.sin(raceTime * 0.7 + h.wob) * 0.15;
   }
 
@@ -772,7 +777,7 @@ function updateHorse(h, dt) {
   }
 
   // スタミナが減ると脚色が鈍る（ソフトなバテ・下限つき）。前で消耗した馬は直線で捕まる
-  if (h.stamina < 15) tv = Math.min(tv, Math.max(15.2 + RACE.spdAdj, 13.6 + RACE.spdAdj + h.stamina * 0.3));
+  if (h.stamina < 15) tv = Math.min(tv, Math.max(16.0 + RACE.spdAdj, 13.6 + RACE.spdAdj + h.stamina * 0.3));
 
   // 加減速
   const acc = h.v < 12 ? PLAYER.startAccel : PLAYER.accel;
@@ -819,37 +824,26 @@ function updateHorse(h, dt) {
     if (h.isPlayer) showMsg("バテた！ 脚が止まる…", 2.5);
   }
 
-  // 進路（AI）
+  // 進路（AI）: 道中は原則ラチ沿いの隊列。長く詰まった時だけ外へ持ち出す（まくり）。
+  // スパートでは各馬の攻め進路に持ち出して直線でばらける
   if (!h.isPlayer) {
-    const t = Math.min(1, raceTime / 20);
-    h.targetLane = h.startLane + (1.1 + h.idx * 0.3 - h.startLane) * t;
     if (rem >= h.spurt) {
-      // 道中: ときどき進路を変えて壁/スリップを取りに行く（馬群が動く）
-      if (raceTime > h.nextMove) {
-        h.nextMove = raceTime + 4 + Math.random() * 6;
-        if (!h.slip && Math.random() < 0.55) {
-          let best = null;
-          for (let i = 0; i < horses.length; i++) {
-            const o = horses[i];
-            if (o === h) continue;
-            const ds = o.s - h.s;
-            if (ds > 3 && ds < 16 && (!best || ds < best.s - h.s)) best = o;
-          }
-          h.drift = best ? best.lane : h.lane + (Math.random() * 2 - 1) * 1.8;
-        } else {
-          h.drift = Math.random() < 0.15 ? h.lane + (Math.random() * 2 - 1) * 1.5 : null;
-        }
+      // 基本は内へ寄せるが、詰まっている時は無理に突っ込まない。
+      // 長く詰まったら外の列に移り、道中はその列を守る（隊列が2〜3列に分散する）
+      if (h.drift != null) h.targetLane = h.drift;
+      else h.targetLane = h.blocked ? h.lane : 0.9;
+      if (h.blocked) h.blockT += dt; else h.blockT = Math.max(0, h.blockT - dt);
+      if (h.blockT > 1.5) {
+        h.drift = Math.min(10, h.lane + 1.6);
+        h.blockT = 0;
       }
-      if (h.drift != null) h.targetLane = Math.max(0.6, Math.min(11.8, h.drift));
     } else {
-      // スパート: 割り当てられた攻め進路へ → 直線で馬群がばらける
       h.targetLane = h.atkLane;
+      if (h.blocked) h.targetLane = Math.min(11, h.lane + 2.0);
     }
-    if (h.blocked) h.blockT += dt; else h.blockT = Math.max(0, h.blockT - dt);
-    if (h.blockT > 0.8) { h.targetLane = Math.min(11, h.lane + 1.8); h.drift = h.targetLane; h.blockT = 0; }
-    if (rem < h.spurt && h.blocked) h.targetLane = Math.min(11.8, h.lane + 2.0);
     const dl = h.targetLane - h.lane;
-    const step = Math.max(-1.4 * dt, Math.min(1.4 * dt, dl));
+    const lsp = rem < h.spurt ? 1.4 : 0.9;   // 道中の進路変更はゆっくり
+    const step = Math.max(-lsp * dt, Math.min(lsp * dt, dl));
     if (step !== 0 && !sideBlocked(h, Math.sign(step))) h.lane += step;
   }
 
@@ -1061,6 +1055,8 @@ function animate(now) {
     if (whipAnim > 0) whipAnim -= dt;
     if (demo) demoControl();
     playerLane(dt);
+    leadS = -1e9;
+    for (let i = 0; i < horses.length; i++) if (!horses[i].finished) leadS = Math.max(leadS, horses[i].s);
     for (let i = 0; i < N; i++) updateHorse(horses[i], dt);
     if (resultTimer > 0) {
       resultTimer -= dt;
