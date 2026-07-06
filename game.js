@@ -527,13 +527,13 @@ function initRace(raceIdx) {
       idx: i, name: e.name, silk: e.silk, style: isPlayer ? "自在" : e.style, isPlayer: isPlayer,
       s: START_S - 2, v: 0, lane: 0.8 + gate * 1.15, targetLane: 0.8 + gate * 1.15,
       startLane: 0.8 + gate * 1.15, gate: gate,
-      stamina: 100, exhausted: false, phase: Math.random() * 6,
+      stamina: 112, exhausted: false, phase: Math.random() * 6,   // ムチ3発分の余裕を持たせる
       kakari: isPlayer ? 0.25 : 0.2 + Math.random() * 0.25,
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
       reaction: 0.08 + Math.random() * 0.3,
-      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) + 0.03 - (demo ? 0.32 : 0) : 0,
-      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) + 0.03 - (demo ? 0.32 : 0) : 0,
+      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 - (demo ? 0.28 : 0) : 0,
+      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 - (demo ? 0.28 : 0) : 0,
       early: st ? st.early : 0,
       spurt: st ? st.spurt * (0.75 + RACE.dist / 6400) + rnd(40) : 0,
       wob: Math.random() * 10,
@@ -716,10 +716,15 @@ function updateHorse(h, dt) {
   const raced = h.s - START_S;
   let tv;
 
+  const near = nearAhead(h);
+  h.slip = !!near.slip;
+  h.cover = near.cover;
+
   // 残スタミナが多いほど末脚が伸びる（道中で溜めた脚の変換・最大+1.0）
   const stamKick = Math.max(0, Math.min(1.0, (h.stamina - 28) * 0.03));
-  // 集団収束: 前と離れているほど脚を使って追走する → 馬群が千切れず、終いは後方から飛んでくる
-  const chase = Math.min(2.2, Math.max(0, (leadS - h.s) * 0.02));
+  // 集団収束: 集団から千切れた馬（前に壁がいない馬）だけが脚を使って追走する。
+  // 馬群内の馬には働かないので、押し合いによる団子化・馬群ごとの急減速が起きない
+  const chase = near.cover ? 0 : Math.min(2.2, Math.max(0, (leadS - h.s) * 0.02));
   if (h.isPlayer) {
     tv = PLAYER.cruiseV + RACE.spdAdj;
     if (down("ArrowUp", "KeyW")) tv = PLAYER.pushV + RACE.spdAdj + (rem < 900 ? stamKick : 0);
@@ -730,15 +735,12 @@ function updateHorse(h, dt) {
     tv = h.cruise + paceBias;
     if (raced < 400) tv = h.cruise + h.early + paceBias;
     // 中弛み: 道中でペースが波打ち、馬群が縮んだり伸びたりする
-    if (raced > 700 && rem > h.spurt + 250 && Math.sin((raced - 700) / 180) > 0.1) tv -= 0.35;
+    if (raced > 700 && rem > h.spurt + 250 && Math.sin((raced - 700) / 180) > 0.1) tv -= 0.25;
     if (rem < h.spurt) tv = h.maxV + stamKick;
     tv += rem < h.spurt ? chase : chase * 0.6;
     tv += Math.sin(raceTime * 0.7 + h.wob) * 0.15;
   }
 
-  const near = nearAhead(h);
-  h.slip = !!near.slip;
-  h.cover = near.cover;
   if (h.slip) tv += 0.3;
 
   // 折り合い（全馬対象）: スパートに入るまでずっと管理が必要。
