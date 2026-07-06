@@ -79,7 +79,7 @@ const RACES = [
     spdAdj: -0.05, pace: [61, 63], vision: "菊花賞 芝3000m",
     copy: "世紀の怪物が駆ける淀、圧倒的な強さで三冠へ",
     desc: "圧倒的な実力差を見せつけてきた怪物の集大成。3000mの長距離を完璧にコントロールし、無敗の三冠の系譜を完成させる。",
-    player: { name: "ナリタブライアン", odds: 1.5, adj: 0.33, coat: 0x3a2c20, mane: 0x1d130b, silk: 0x2b6fdd },
+    player: { name: "ナリタブライアン", odds: 1.5, adj: 0.28, coat: 0x3a2c20, mane: 0x1d130b, silk: 0x2b6fdd },
     rivals: [
       { name: "ヤシマソブリン",     style: "差し", adj: 0.08,  odds: 13 },
       { name: "エアダブリン",       style: "先行", adj: 0.12,  odds: 5.6 },
@@ -99,7 +99,7 @@ const RACES = [
     spdAdj: 0.25, pace: [59.5, 61.5], vision: "ジャパンカップ 芝2400m",
     copy: "皇帝を超えた帝王、世界制覇の系譜",
     desc: "七冠馬たる父シンボリルドルフに続き、大怪我を乗り越えた帝王トウカイテイオーが親子制覇の偉業に挑む国際大決戦。",
-    player: { name: "トウカイテイオー", odds: 4.9, adj: 0.25, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    player: { name: "トウカイテイオー", odds: 4.9, adj: 0.10, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
       { name: "ナチュラリズム",       style: "差し", adj: 0.15,  odds: 4.1 },
       { name: "ユーザーフレンドリー", style: "差し", adj: 0.10,  odds: 3.2 },
@@ -120,7 +120,7 @@ const RACES = [
     spdAdj: 0.2, pace: [60, 62], vision: "日本ダービー 芝2400m",
     copy: "宿命の刻、世代の頂点へ",
     desc: "最強の呼び声高い世代が集結。東京2400mの長い直線、ライバルたちを突き放して世代の頂点へ踊り出る渾身のスパート戦。",
-    player: { name: "スペシャルウィーク", odds: 2.1, adj: 0.22, coat: 0x33281e, mane: 0x171310, silk: 0x2b6fdd },
+    player: { name: "スペシャルウィーク", odds: 2.1, adj: 0.27, coat: 0x33281e, mane: 0x171310, silk: 0x2b6fdd },
     rivals: [
       { name: "セイウンスカイ",     style: "逃げ",   adj: 0.15,  odds: 4.3 },
       { name: "キングヘイロー",     style: "大逃げ", adj: 0.10,  odds: 5.5 },
@@ -160,7 +160,7 @@ const RACES = [
     spdAdj: 0.0, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
     copy: "宿命のライバル激突、最後の死闘",
     desc: "スペシャルウィークとのラストバトル。ライバルの猛追を紙一重で凌ぎ切る、中山の坂でのシビアな死闘を再現。",
-    player: { name: "グラスワンダー", odds: 2.8, adj: 0.20, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
+    player: { name: "グラスワンダー", odds: 2.8, adj: 0.10, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
     rivals: [
       { name: "スペシャルウィーク", style: "差し", adj: 0.22, odds: 3.0 },
       { name: "テイエムオペラオー", style: "先行", adj: 0.12, odds: 5.4 },
@@ -181,7 +181,7 @@ const RACES = [
     spdAdj: -0.1, pace: [61, 63], vision: "天皇賞(春) 芝3200m",
     copy: "空を飛ぶ英雄の衝撃",
     desc: "競馬界に最大の衝撃を与え続けた英雄の真骨頂。3200mの長距離でありながら、3コーナーから一気に加速して全馬を置き去りにする特殊ステージ。",
-    player: { name: "ディープインパクト", odds: 1.1, adj: 0.25, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
+    player: { name: "ディープインパクト", odds: 1.1, adj: 0.35, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
     rivals: [
       { name: "リンカーン",         style: "差し", adj: 0.12,  odds: 8.9 },
       { name: "デルタブルース",     style: "差し", adj: 0.10,  odds: 9.7 },
@@ -201,7 +201,7 @@ const RACES = [
     spdAdj: 0.3, pace: [58.8, 60.8], vision: "日本ダービー 芝2400m",
     copy: "大王降臨、過酷なる死のダービー",
     desc: "あまりのハイペースと過酷さから死のダービーと称された一戦。大王の圧倒的なスピードとスタミナで、限界の壁を突破する。",
-    player: { name: "キングカメハメハ", odds: 2.1, adj: 0.21, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
+    player: { name: "キングカメハメハ", odds: 2.1, adj: 0.26, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
     rivals: [
       { name: "ハーツクライ",       style: "差し",   adj: 0.15,  odds: 11 },
       { name: "ハイアーゲーム",     style: "差し",   adj: 0.12,  odds: 6.8 },
@@ -221,9 +221,9 @@ const RACES = [
     spdAdj: 0.05, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
     copy: "世紀の大金星へ、絶対王者を撃破せよ",
     desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
-    player: { name: "ハーツクライ", odds: 9.0, adj: 0.13, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    player: { name: "ハーツクライ", odds: 9.0, adj: 0.08, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ディープインパクト",   style: "追込",   adj: 0.45,  odds: 1.15 },
+      { name: "ディープインパクト",   style: "追込",   adj: 0.70,  odds: 1.3 },
       { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
       { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
       { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
@@ -242,7 +242,7 @@ const RACES = [
     spdAdj: 0.45, pace: [58.5, 60.5], vision: "ジャパンカップ 芝2400m",
     copy: "時代を背負う三翼、頂点を競う静かなる激突",
     desc: "その年の三冠を分け合った俊英たちが集う、世代を超えた頂上決戦。有終の美を飾るため、若き強豪たちを封じ込める。",
-    player: { name: "アーモンドアイ", odds: 1.6, adj: 0.28, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
+    player: { name: "アーモンドアイ", odds: 1.6, adj: 0.33, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
     rivals: [
       { name: "コントレイル",       style: "先行", adj: 0.20,  odds: 2.8 },
       { name: "デアリングタクト",   style: "差し", adj: 0.15,  odds: 4.5 },
@@ -282,7 +282,7 @@ const RACES = [
     spdAdj: 1.5, pace: [55, 57], vision: "スプリンターズS 芝1200m",
     copy: "電撃のスプリント、全てをねじ伏せる衝撃の末脚",
     desc: "スタートでの出遅れを挽回するスプリント戦。道中は極限まで脚をため、直線に入った瞬間に一気怒濤の末脚でごぼう抜きを狙う。",
-    player: { name: "グランアレグリア", odds: 2.2, adj: 0.26, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99 },
+    player: { name: "グランアレグリア", odds: 2.2, adj: 0.16, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99 },
     rivals: [
       { name: "ダノンスマッシュ",     style: "先行",   adj: 0.12,  odds: 4.6 },
       { name: "モズスーパーフレア",   style: "大逃げ", adj: 0.08,  odds: 8.1 },
@@ -303,7 +303,7 @@ const RACES = [
     spdAdj: 0.25, pace: [60, 62], vision: "皐月賞 芝2000m",
     copy: "強豪を撃墜し、新時代の快速王へ",
     desc: "若き横山武史との新コンビ。抜群の操作性と快速を活かし、ロスなく最内を立ち回ってライバルたちを撃墜する精密な進路取りステージ。",
-    player: { name: "エフフォーリア", odds: 2.8, adj: 0.22, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xd23a2e },
+    player: { name: "エフフォーリア", odds: 2.8, adj: 0.27, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xd23a2e },
     rivals: [
       { name: "タイトルホルダー",   style: "逃げ", adj: 0.12,  odds: 13 },
       { name: "ダノンザキッド",     style: "先行", adj: 0.12,  odds: 3.9 },
@@ -343,7 +343,7 @@ const RACES = [
     spdAdj: 0.05, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
     copy: "人馬一体、復活の末脚",
     desc: "怪我から復帰した名手との熱いコンビ再結成。中山の4コーナーから一気に外を捲り、自慢の末脚を爆発させた最高の逆襲劇を再現。",
-    player: { name: "ドウデュース", odds: 4.0, adj: 0.24, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    player: { name: "ドウデュース", odds: 4.0, adj: 0.14, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
       { name: "スターズオンアース",   style: "差し", adj: 0.18,  odds: 7.1 },
       { name: "ジャスティンパレス",   style: "差し", adj: 0.15,  odds: 4.2 },
@@ -510,9 +510,9 @@ scene.add(posts);
 
 // --- ゴールライン・ゴール柱 ---
 {
-  const p = posAt(GOAL_MOD, 7.25);
+  const p = posAt(GOAL_MOD, 8.65);   // レーン幅拡張(外ラチ17.6)に合わせた中点
   const line = new THREE.Mesh(
-    new THREE.PlaneGeometry(16.5, 1.0),
+    new THREE.PlaneGeometry(19.3, 1.0),   // 拡張後の全幅+余白をカバー
     new THREE.MeshLambertMaterial({ color: 0xffffff })
   );
   line.rotation.x = -Math.PI / 2;
