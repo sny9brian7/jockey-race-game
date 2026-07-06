@@ -12,6 +12,27 @@
 ## 依存
 - Three.js r128 — CDN（cdnjs）から読み込み。初回はネット接続が必要。
 
+## 公開
+- GitHub: https://github.com/sny9brian7/jockey-race-game （リモート名 `origin`, ブランチ `main`）
+- 公開URL（GitHub Pages）: https://sny9brian7.github.io/jockey-race-game/
+  `main` ブランチのルートがそのまま配信される。反映まで数十秒〜数分かかることがある
+
+## 開発フロー（試作 → 反映 → 公開）
+このフォルダ直下（`index.html` / `game.js` / `CLAUDE.md`）が「本番＝公開版」。
+実験的な変更はここを直接いじらず、必ず `draft/` サブフォルダの中で試作する。
+
+1. **試作**: `draft/index.html` / `draft/game.js` を編集して調整・実装する。
+   `draft/` は `.gitignore` で除外済みなので、いくら試しても本番やGitには影響しない
+2. **検証**: バランスに関わる変更は、実物の `draft/game.js` をTHREE/DOMスタブで
+   ヘッドレス実行して検証する（別実装のシミュレーションを新規に書くのは禁止）。
+   スタブ・スモークテスト一式はscratchpad（セッション終了で消える）に都度作る
+3. **反映**: 試作結果に問題がなければ、`draft/index.html` / `draft/game.js` /
+   （必要なら）`draft/CLAUDE.md` の内容で、このフォルダ直下の同名ファイルを上書きする
+   （`README.md` は基本的に差分なしのはずなので上書き不要なら触らない）
+4. **公開**: このフォルダで `git status` → 差分確認 → `git add` → `git commit` →
+   `git push origin main`。pushすればGitHub Pagesの公開版に反映される
+   （公開・push は破壊的操作に準じるため、必ずユーザーの明示的な指示があってから行う）
+
 ## ゲーム仕様
 - 12頭立て。5つの史実レースから選択（相手馬も各レースの実際の出走馬）:
   - 1997 天皇賞（春） 京都・外回り 3200m — マヤノトップガン
