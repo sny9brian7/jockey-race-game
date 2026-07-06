@@ -10,9 +10,11 @@ if (typeof THREE === "undefined") {
 // ==== コース定数（レース選択時に buildCourse が設定） ====
 // 各競馬場を「直線2本+半円2つ」のオーバルで再現。dir: 1=左回り, -1=右回り
 const COURSES = {
-  tokyo:    { name: "東京",     len: 2080, straight: 540, goal: 525, dir:  1 }, // 実際: 一周2083.1m/直線525.9m/左回り
-  kyotoOut: { name: "京都(外)", len: 1894, straight: 420, goal: 404, dir: -1 }, // 実際: 一周1894.3m/直線403.7m/右回り
-  nakayama: { name: "中山(内)", len: 1667, straight: 325, goal: 310, dir: -1 }  // 実際: 一周1667.1m/直線310m/右回り
+  tokyo:       { name: "東京",     len: 2080, straight: 540, goal: 525, dir:  1 }, // 実際: 一周2083.1m/直線525.9m/左回り
+  kyotoOut:    { name: "京都(外)", len: 1894, straight: 420, goal: 404, dir: -1 }, // 実際: 一周1894.3m/直線403.7m/右回り
+  nakayama:    { name: "中山(内)", len: 1667, straight: 325, goal: 310, dir: -1 }, // 実際: 一周1667.1m/直線310m/右回り
+  nakayamaOut: { name: "中山(外)", len: 1840, straight: 325, goal: 310, dir: -1 }, // 実際: 一周1839.7m/直線310m/右回り
+  hanshinIn:   { name: "阪神(内)", len: 1689, straight: 370, goal: 356, dir: -1 }  // 実際: 一周1689m/直線356.5m/右回り
 };
 let TRACK_LEN = 2080, STRAIGHT = 540, HALF = 270, R = 159.15;
 let T1 = 0, T2 = 0, T3 = 0, GOAL_MOD = 525, DIR = 1, REM_CORNER = 1025;
@@ -23,120 +25,345 @@ let START_S = 0, FINISH_S = 0, RACE = null;
 const PLAYER = {
   easeV: 14.2,      // ↓抑え時の目標速度 (m/s)。drainBaseより低い=本当に回復する
   cruiseV: 16.3,    // ニュートラル
-  pushV: 18.6,      // ↑追い時（残スタミナが多いとさらに伸びる）
+  pushV: 18.4,      // ↑追い時（残スタミナが多いとさらに伸びる）
   // ムチ: スタミナを消費して一時加速（回数制限なし）。序盤に使うと掛かる
-  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 20.7,
+  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 20.4,
   drainBase: 14.5,
   accel: 1.15, startAccel: 5.5,
   minLane: 0.6, maxLane: 13.6, laneSpeed: 2.5   // レーン幅+1.4m(馬2頭分)ぶん外側まで拡張
 };
-// 脚質: early=序盤の上乗せ(隊列形成), spurt=残り何mでスパート
-// 道中は後方脚質ほど巡航が僅かに速く、開いた差がじわじわ縮んで3〜4角で凝縮する。
-// スパートは末脚(maxV)+残スタミナ変換で決着 → 直線で順位が入れ替わる
-// 基礎maxVの差は小さく、残スタミナ変換(stamKick, 最大+1.8)が末脚の主役。
-// 脚を溜めた馬はバテた先行勢より3〜4m/s速い状態で直線に飛んでくる
+// 脚質: early=序盤の上乗せ(隊列形成), spurt=残り何mでスパート。
+// cruise/maxVは全脚質共通の基礎値に統一(2026-07再設計)。能力(adj)差だけで
+// 脚質に合わない先頭進出が起きないよう、脚質ごとの強みは局面限定の
+// 加速ボーナス(最初300m・前脚質)と末脚ボーナス(最後400m・後脚質)に集約する
 const STYLES = {
-  "大逃げ": { early:  1.1, cruise: 16.15, maxV: 17.95, spurt: 700 },
-  "逃げ":   { early:  0.55, cruise: 16.2, maxV: 18.05, spurt: 650 },
-  "先行":   { early:  0.3, cruise: 16.27, maxV: 18.15, spurt: 640 },
-  "差し":   { early: -0.2, cruise: 16.42, maxV: 18.35, spurt: 660 },
-  "追込":   { early: -0.35, cruise: 16.5, maxV: 18.45, spurt: 650 }
+  "大逃げ": { early:  1.1, cruise: 16.3, maxV: 18.15, spurt: 700 },
+  "逃げ":   { early:  0.55, cruise: 16.3, maxV: 18.15, spurt: 650 },
+  "先行":   { early:  0.3, cruise: 16.3, maxV: 18.15, spurt: 640 },
+  "差し":   { early: -0.2, cruise: 16.3, maxV: 18.15, spurt: 660 },
+  "追込":   { early: -0.35, cruise: 16.3, maxV: 18.15, spurt: 650 }
 };
+// 最初300mの加速度ボーナス(前脚質ほど早くトップスピードに乗り先行しやすい)
+const EARLY_ACCEL = { "大逃げ": 1.45, "逃げ": 1.45, "先行": 1.2 };
+// 最後400mの最高速度ボーナス(後脚質の末脚を局面限定で強化)
+const LATE_KICK = { "差し": 0.35, "追込": 0.4 };
 
-// spdAdj: 距離に応じた全体ペース補正, drainK: 消耗率(距離が長いほど低い)
-// adj: 馬ごとの能力補正（cruise/maxV に加算）
+// spdAdj: 距離・馬場に応じた全体ペース補正 / adj: 馬ごとの能力補正（×0.4でcruise/maxVに加算）
+// drainK(消耗率)と初期スタミナは距離から自動計算(initRace)。drainMulで馬場の重さを上乗せできる
+// chapter/copy/desc: 章・キャッチコピー・紹介文（index.htmlの表示と対応）
+// 出走馬は史実の出走メンバーに基づく（オッズ・能力値は当時の人気と実績からの推定を含む）
 const RACES = [
+  // ══ 第1章 伝説 ══
   {
-    title: "1997 天皇賞（春）", course: COURSES.kyotoOut, dist: 3200,
-    spdAdj: -0.1, drainK: 0.22, pace: [61, 63], vision: "天皇賞(春) 芝3200m",
-    player: { name: "マヤノトップガン", odds: 3.7, adj: 0.18, coat: 0x9a5a2b, mane: 0x6e3c17, silk: 0x2da84f },
-    rivals: [
-      { name: "サクラローレル",     style: "差し", adj: 0.22, odds: 1.5, coat: 0x9a5a2b, silk: 0xd23a2e },
-      { name: "マーベラスサンデー", style: "差し", adj: 0.15, odds: 4.9, coat: 0x6b4423, silk: 0x2b6fdd },
-      { name: "ステージチャンプ",   style: "差し", adj: 0.05, odds: 18, coat: 0x5a3a22, silk: 0xe8c522 },
-      { name: "ローゼンカバリー",   style: "先行", adj: 0.05, odds: 12, coat: 0x3a2c20, silk: 0x8a3fd1 },
-      { name: "ビッグシンボル",     style: "先行", adj: 0.0,  odds: 45, coat: 0x7a5230, silk: 0xe07a20 },
-      { name: "ノーザンポラリス",   style: "逃げ", adj: 0.0,  odds: 62, coat: 0x5f4632, silk: 0x22b8c8 },
-      { name: "ユウセンショウ",     style: "差し", adj: 0.0,  odds: 26, coat: 0x6b4423, silk: 0xe062a8 },
-      { name: "メジロランバダ",     style: "差し", adj: -0.05, odds: 84, coat: 0x5a3a22, silk: 0xf0f0f0 },
-      { name: "エイシンホンコン",   style: "先行", adj: -0.05, odds: 55, coat: 0x6b4423, silk: 0x7fd4ff },
-      { name: "ハギノリアルキング", style: "差し", adj: -0.08, odds: 39, coat: 0x3a2c20, silk: 0x9acd32 },
-      { name: "ポレール",           style: "先行", adj: -0.1, odds: 93, coat: 0x7a5230, silk: 0xb08968 }
-    ]
-  },
-  {
-    title: "1999 有馬記念", course: COURSES.nakayama, dist: 2500,
-    spdAdj: 0.0, drainK: 0.29, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
-    player: { name: "グラスワンダー", odds: 2.8, adj: 0.20, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
-    rivals: [
-      { name: "スペシャルウィーク", style: "差し", adj: 0.22, odds: 3.0, coat: 0x33281e, silk: 0x2b6fdd },
-      { name: "テイエムオペラオー", style: "先行", adj: 0.12, odds: 5.4, coat: 0x9a5a2b, silk: 0x2da84f },
-      { name: "ツルマルツヨシ",     style: "先行", adj: 0.08, odds: 9.8, coat: 0x5a3a22, silk: 0xe8c522 },
-      { name: "メジロブライト",     style: "追込", adj: 0.05, odds: 15, coat: 0x6b4423, silk: 0x8a3fd1 },
-      { name: "ナリタトップロード", style: "先行", adj: 0.05, odds: 12, coat: 0x5a3a22, silk: 0xe07a20 },
-      { name: "ステイゴールド",     style: "差し", adj: 0.02, odds: 21, coat: 0x3a2c20, silk: 0x22b8c8 },
-      { name: "ゴーイングスズカ",   style: "逃げ", adj: 0.0,  odds: 52, coat: 0x7a5230, silk: 0xe062a8 },
-      { name: "ファレノプシス",     style: "差し", adj: -0.02, odds: 24, coat: 0x4a2c17, silk: 0xf0f0f0 },
-      { name: "フサイチエアデール", style: "先行", adj: -0.05, odds: 37, coat: 0x6b4423, silk: 0x7fd4ff },
-      { name: "スエヒロコマンダー", style: "先行", adj: -0.08, odds: 71, coat: 0x5a3a22, silk: 0x9acd32 },
-      { name: "ダイワオーシュウ",   style: "差し", adj: -0.1, odds: 88, coat: 0x7a5230, silk: 0xb08968 }
-    ]
-  },
-  {
-    title: "2022 天皇賞（秋）", course: COURSES.tokyo, dist: 2000,
-    spdAdj: 0.4, drainK: 0.36, pace: [59, 61], vision: "天皇賞(秋) 芝2000m",
-    player: { name: "イクイノックス", odds: 2.6, adj: 0.25, coat: 0x26211c, mane: 0x171310, silk: 0x1c3f99 },
-    rivals: [
-      { name: "パンサラッサ",   style: "大逃げ", adj: 0.0,   odds: 8.9, coat: 0x6b4423, silk: 0xd23a2e },
-      { name: "ジャックドール", style: "先行",   adj: 0.1,   odds: 7.0, coat: 0x5a3a22, silk: 0xe8c522 },
-      { name: "ダノンベルーガ", style: "差し",   adj: 0.12,  odds: 4.9, coat: 0x5a3a22, silk: 0x2da84f },
-      { name: "シャフリヤール", style: "差し",   adj: 0.15,  odds: 5.9, coat: 0x352a1e, silk: 0x8a3fd1 },
-      { name: "ジオグリフ",     style: "先行",   adj: 0.0,   odds: 14, coat: 0x6b4423, silk: 0xe07a20 },
-      { name: "マリアエレーナ", style: "差し",   adj: -0.05, odds: 21, coat: 0x7a5230, silk: 0x22b8c8 },
-      { name: "ノースブリッジ", style: "先行",   adj: -0.1,  odds: 42, coat: 0x5f4632, silk: 0xe062a8 },
-      { name: "レイパパレ",     style: "先行",   adj: -0.02, odds: 26, coat: 0x6b4423, silk: 0xf0f0f0 },
-      { name: "バビット",       style: "逃げ",   adj: -0.05, odds: 91, coat: 0x5a3a22, silk: 0x7fd4ff },
-      { name: "ユーバーレーベン", style: "追込", adj: -0.05, odds: 58, coat: 0x3a2c20, silk: 0x9acd32 },
-      { name: "カラテ",         style: "差し",   adj: -0.08, odds: 54, coat: 0x5f4632, silk: 0xb08968 }
-    ]
-  },
-  {
-    title: "2005 日本ダービー", course: COURSES.tokyo, dist: 2400,
-    spdAdj: 0.2, drainK: 0.30, pace: [60, 62], vision: "日本ダービー 芝2400m",
-    player: { name: "ディープインパクト", odds: 1.1, adj: 0.28, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
-    rivals: [
-      { name: "コンゴウリキシオー", style: "逃げ", adj: 0.0,   odds: 33, coat: 0x9a6a33, silk: 0xd23a2e },
-      { name: "インティライミ",     style: "先行", adj: 0.15,  odds: 14, coat: 0x6b4423, silk: 0x2da84f },
-      { name: "シックスセンス",     style: "差し", adj: 0.12,  odds: 9.8, coat: 0x352a1e, silk: 0xe8c522 },
-      { name: "アドマイヤフジ",     style: "差し", adj: 0.1,   odds: 20, coat: 0x5a3a22, silk: 0x8a3fd1 },
-      { name: "マイネルレコルト",   style: "先行", adj: 0.05,  odds: 25, coat: 0x7a5230, silk: 0xe07a20 },
-      { name: "ローゼンクロイツ",   style: "差し", adj: 0.05,  odds: 7.1, coat: 0x3a2c20, silk: 0x22b8c8 },
-      { name: "アドマイヤジャパン", style: "先行", adj: 0.0,   odds: 12, coat: 0x5f4632, silk: 0xe062a8 },
-      { name: "ニシノドコマデ",     style: "差し", adj: -0.02, odds: 61, coat: 0x7a5230, silk: 0xf0f0f0 },
-      { name: "ペールギュント",     style: "差し", adj: -0.05, odds: 46, coat: 0x5f4632, silk: 0x7fd4ff },
-      { name: "シャドウゲイト",     style: "先行", adj: -0.05, odds: 82, coat: 0x6b4423, silk: 0x9acd32 },
-      { name: "ダンスインザモア",   style: "先行", adj: -0.08, odds: 94, coat: 0x5a3a22, silk: 0xb08968 }
-    ]
-  },
-  {
-    title: "1990 安田記念", course: COURSES.tokyo, dist: 1600,
-    spdAdj: 0.9, drainK: 0.45, pace: [57.5, 59.5], vision: "安田記念 芝1600m",
+    title: "1990 安田記念", chapter: "第1章 伝説の幕開け", course: COURSES.tokyo, dist: 1600,
+    spdAdj: 0.9, pace: [57.5, 59.5], vision: "安田記念 芝1600m",
+    copy: "府中の静寂を破る、怪物の咆哮",
+    desc: "マイルの舞台で繰り広げられる直線一気の高速決戦。芦毛の怪物の底力を体験する基礎チュートリアルステージ。",
     player: { name: "オグリキャップ", odds: 1.4, adj: 0.18, coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
     rivals: [
-      { name: "ケープポイント",   style: "逃げ", adj: -0.05, odds: 44, coat: 0x6b4423, silk: 0x2b6fdd },
-      { name: "ヤエノムテキ",     style: "先行", adj: 0.15,  odds: 8.4, coat: 0x5a3a22, silk: 0x2da84f },
-      { name: "オサイチジョージ", style: "先行", adj: 0.1,   odds: 6.9, coat: 0x8b5a2b, silk: 0xe8c522 },
-      { name: "バンブーメモリー", style: "差し", adj: 0.05,  odds: 4.8, coat: 0x3a2c20, silk: 0x8a3fd1 },
-      { name: "シンウインド",     style: "差し", adj: 0.05,  odds: 29, coat: 0x7a5230, silk: 0xe07a20 },
-      { name: "ホクトヘリオス",   style: "先行", adj: 0.0,   odds: 24, coat: 0x5a3a22, silk: 0x22b8c8 },
-      { name: "コガネターボ",     style: "差し", adj: -0.05, odds: 49, coat: 0x6b4423, silk: 0xe062a8 },
-      { name: "リンドホシ",       style: "差し", adj: -0.05, odds: 63, coat: 0x7a5230, silk: 0xf0f0f0 },
-      { name: "ジュネーブシンボリ", style: "先行", adj: -0.05, odds: 72, coat: 0x5a3a22, silk: 0x7fd4ff },
-      { name: "メジロモニカ",     style: "差し", adj: -0.08, odds: 85, coat: 0x6b4423, silk: 0x9acd32 },
-      { name: "イズミサンシャイン", style: "先行", adj: -0.1, odds: 96, coat: 0x3a2c20, silk: 0xb08968 }
+      { name: "ケープポイント",   style: "逃げ", adj: -0.05, odds: 44 },
+      { name: "ヤエノムテキ",     style: "先行", adj: 0.15,  odds: 8.4 },
+      { name: "オサイチジョージ", style: "先行", adj: 0.1,   odds: 6.9 },
+      { name: "バンブーメモリー", style: "差し", adj: 0.05,  odds: 4.8 },
+      { name: "シンウインド",     style: "差し", adj: 0.05,  odds: 29 },
+      { name: "ホクトヘリオス",   style: "先行", adj: 0.0,   odds: 24 },
+      { name: "コガネターボ",     style: "差し", adj: -0.05, odds: 49 },
+      { name: "リンドホシ",       style: "差し", adj: -0.05, odds: 63 },
+      { name: "ジュネーブシンボリ", style: "先行", adj: -0.05, odds: 72 },
+      { name: "メジロモニカ",     style: "差し", adj: -0.08, odds: 85 },
+      { name: "イズミサンシャイン", style: "先行", adj: -0.1, odds: 96 }
+    ]
+  },
+  {
+    title: "1992 ジャパンカップ", chapter: "第1章 伝説の幕開け", course: COURSES.tokyo, dist: 2400,
+    spdAdj: 0.25, pace: [59.5, 61.5], vision: "ジャパンカップ 芝2400m",
+    copy: "皇帝を超えた帝王、世界制覇の系譜",
+    desc: "七冠馬たる父シンボリルドルフに続き、大怪我を乗り越えた帝王トウカイテイオーが親子制覇の偉業に挑む国際大決戦。",
+    player: { name: "トウカイテイオー", odds: 4.9, adj: 0.20, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    rivals: [
+      { name: "ナチュラリズム",       style: "差し", adj: 0.15,  odds: 4.1 },
+      { name: "ユーザーフレンドリー", style: "差し", adj: 0.10,  odds: 3.2 },
+      { name: "ディアドクター",       style: "差し", adj: 0.12,  odds: 7.3 },
+      { name: "レガシーワールド",     style: "先行", adj: 0.10,  odds: 9.6 },
+      { name: "レッツイロープ",       style: "先行", adj: 0.05,  odds: 12 },
+      { name: "ドクターデヴィアス",   style: "差し", adj: 0.02,  odds: 15 },
+      { name: "クエストフォーフェイム", style: "差し", adj: 0.05, odds: 18 },
+      { name: "カミノクレッセ",       style: "先行", adj: 0.0,   odds: 33 },
+      { name: "イクノディクタス",     style: "先行", adj: -0.02, odds: 46 },
+      { name: "ヒシマサル",           style: "追込", adj: -0.05, odds: 55 },
+      { name: "ハシルショウグン",     style: "逃げ", adj: -0.05, odds: 70 }
+    ]
+  },
+  {
+    title: "1994 菊花賞", chapter: "第1章 伝説の幕開け", course: COURSES.kyotoOut, dist: 3000,
+    spdAdj: -0.05, pace: [61, 63], vision: "菊花賞 芝3000m",
+    copy: "世紀の怪物が駆ける淀、圧倒的な強さで三冠へ",
+    desc: "圧倒的な実力差を見せつけてきた怪物の集大成。3000mの長距離を完璧にコントロールし、無敗の三冠の系譜を完成させる。",
+    player: { name: "ナリタブライアン", odds: 1.5, adj: 0.28, coat: 0x3a2c20, mane: 0x1d130b, silk: 0x2b6fdd },
+    rivals: [
+      { name: "ヤシマソブリン",     style: "差し", adj: 0.08,  odds: 13 },
+      { name: "エアダブリン",       style: "先行", adj: 0.12,  odds: 5.6 },
+      { name: "スターマン",         style: "差し", adj: 0.05,  odds: 9.8 },
+      { name: "マイシンザン",       style: "差し", adj: 0.02,  odds: 24 },
+      { name: "タイキブライドル",   style: "先行", adj: 0.0,   odds: 28 },
+      { name: "サクラエイコウオー", style: "先行", adj: -0.02, odds: 35 },
+      { name: "ナムラコクオー",     style: "逃げ", adj: 0.0,   odds: 42 },
+      { name: "インターライナー",   style: "先行", adj: -0.05, odds: 48 },
+      { name: "ゴーゴーゼット",     style: "差し", adj: -0.05, odds: 60 },
+      { name: "フジノマッケンオー", style: "先行", adj: -0.05, odds: 55 },
+      { name: "トーワダーリン",     style: "差し", adj: -0.08, odds: 80 }
+    ]
+  },
+  // ══ 第2章 黄金世代 ══
+  {
+    title: "1998 日本ダービー", chapter: "第2章 最強黄金世代", course: COURSES.tokyo, dist: 2400,
+    spdAdj: 0.2, pace: [60, 62], vision: "日本ダービー 芝2400m",
+    copy: "宿命の刻、世代の頂点へ",
+    desc: "最強の呼び声高い世代が集結。東京2400mの長い直線、ライバルたちを突き放して世代の頂点へ踊り出る渾身のスパート戦。",
+    player: { name: "スペシャルウィーク", odds: 2.1, adj: 0.22, coat: 0x33281e, mane: 0x171310, silk: 0x2b6fdd },
+    rivals: [
+      { name: "セイウンスカイ",     style: "逃げ",   adj: 0.15,  odds: 4.3 },
+      { name: "キングヘイロー",     style: "大逃げ", adj: 0.10,  odds: 5.5 },
+      { name: "エモシオン",         style: "差し",   adj: 0.05,  odds: 9.7 },
+      { name: "ランフォザドリーム", style: "差し",   adj: 0.0,   odds: 22 },
+      { name: "ダイワスペリアー",   style: "差し",   adj: 0.02,  odds: 33 },
+      { name: "クリスザブレイヴ",   style: "先行",   adj: -0.02, odds: 46 },
+      { name: "タヤスアゲイン",     style: "先行",   adj: -0.05, odds: 58 },
+      { name: "ボールドエンペラー", style: "差し",   adj: 0.0,   odds: 79 },
+      { name: "ハクバドウジ",       style: "追込",   adj: -0.05, odds: 68 },
+      { name: "ゲイリーフラッシュ", style: "先行",   adj: -0.08, odds: 90 },
+      { name: "ミスズシャルダン",   style: "先行",   adj: -0.08, odds: 95 }
+    ]
+  },
+  {
+    title: "1998 ジャパンカップ", chapter: "第2章 最強黄金世代", course: COURSES.tokyo, dist: 2400,
+    spdAdj: 0.3, pace: [59.5, 61.5], vision: "ジャパンカップ 芝2400m",
+    copy: "蘇る不死鳥、ライバルたちとの邂逅",
+    desc: "毎日王冠で宿敵に敗れるも、不屈の闘志で蘇った不死鳥。強力な外国馬や国内のライバルたちを力でねじ伏せる一戦。",
+    player: { name: "エルコンドルパサー", odds: 2.9, adj: 0.24, coat: 0x26211c, mane: 0x171310, silk: 0xd23a2e },
+    rivals: [
+      { name: "スペシャルウィーク", style: "差し", adj: 0.20,  odds: 2.4 },
+      { name: "エアグルーヴ",       style: "差し", adj: 0.18,  odds: 4.8 },
+      { name: "セイウンスカイ",     style: "逃げ", adj: 0.12,  odds: 7.9 },
+      { name: "ハイライズ",         style: "差し", adj: 0.08,  odds: 11 },
+      { name: "シルクジャスティス", style: "追込", adj: 0.05,  odds: 13 },
+      { name: "ステイゴールド",     style: "差し", adj: 0.05,  odds: 14 },
+      { name: "デザートキング",     style: "先行", adj: 0.05,  odds: 16 },
+      { name: "カイタノ",           style: "先行", adj: -0.02, odds: 35 },
+      { name: "サイレントハンター", style: "逃げ", adj: -0.02, odds: 40 },
+      { name: "ユーセイトップラン", style: "先行", adj: -0.05, odds: 55 },
+      { name: "ゴーイングスズカ",   style: "先行", adj: -0.05, odds: 60 }
+    ]
+  },
+  {
+    title: "1999 有馬記念", chapter: "第2章 最強黄金世代", course: COURSES.nakayama, dist: 2500,
+    spdAdj: 0.0, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
+    copy: "宿命のライバル激突、最後の死闘",
+    desc: "スペシャルウィークとのラストバトル。ライバルの猛追を紙一重で凌ぎ切る、中山の坂でのシビアな死闘を再現。",
+    player: { name: "グラスワンダー", odds: 2.8, adj: 0.20, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
+    rivals: [
+      { name: "スペシャルウィーク", style: "差し", adj: 0.22, odds: 3.0 },
+      { name: "テイエムオペラオー", style: "先行", adj: 0.12, odds: 5.4 },
+      { name: "ツルマルツヨシ",     style: "先行", adj: 0.08, odds: 9.8 },
+      { name: "メジロブライト",     style: "追込", adj: 0.05, odds: 15 },
+      { name: "ナリタトップロード", style: "先行", adj: 0.05, odds: 12 },
+      { name: "ステイゴールド",     style: "差し", adj: 0.02, odds: 21 },
+      { name: "ゴーイングスズカ",   style: "逃げ", adj: 0.0,  odds: 52 },
+      { name: "ファレノプシス",     style: "差し", adj: -0.02, odds: 24 },
+      { name: "フサイチエアデール", style: "先行", adj: -0.05, odds: 37 },
+      { name: "スエヒロコマンダー", style: "先行", adj: -0.08, odds: 71 },
+      { name: "ダイワオーシュウ",   style: "差し", adj: -0.1, odds: 88 }
+    ]
+  },
+  // ══ 第3章 ディープ近辺 ══
+  {
+    title: "2004 日本ダービー", chapter: "第3章 英雄の衝撃", course: COURSES.tokyo, dist: 2400,
+    spdAdj: 0.3, pace: [58.8, 60.8], vision: "日本ダービー 芝2400m",
+    copy: "大王降臨、過酷なる死のダービー",
+    desc: "あまりのハイペースと過酷さから死のダービーと称された一戦。大王の圧倒的なスピードとスタミナで、限界の壁を突破する。",
+    player: { name: "キングカメハメハ", odds: 2.1, adj: 0.26, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
+    rivals: [
+      { name: "ハーツクライ",       style: "差し",   adj: 0.15,  odds: 11 },
+      { name: "ハイアーゲーム",     style: "差し",   adj: 0.12,  odds: 6.8 },
+      { name: "コスモバルク",       style: "先行",   adj: 0.12,  odds: 4.2 },
+      { name: "ダイワメジャー",     style: "先行",   adj: 0.08,  odds: 9.5 },
+      { name: "スズカマンボ",       style: "差し",   adj: 0.05,  odds: 19 },
+      { name: "ホオキパウェーブ",   style: "追込",   adj: 0.02,  odds: 26 },
+      { name: "キョウワスプレンダ", style: "先行",   adj: 0.0,   odds: 38 },
+      { name: "ピサノクウカイ",     style: "差し",   adj: -0.02, odds: 45 },
+      { name: "フォーカルポイント", style: "先行",   adj: -0.05, odds: 60 },
+      { name: "マイネルマクロス",   style: "大逃げ", adj: -0.05, odds: 92 },
+      { name: "メイショウムネノリ", style: "追込",   adj: -0.08, odds: 85 }
+    ]
+  },
+  {
+    title: "2005 有馬記念", chapter: "第3章 英雄の衝撃", course: COURSES.nakayama, dist: 2500,
+    spdAdj: 0.05, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
+    copy: "世紀の大金星へ、絶対王者を撃破せよ",
+    desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
+    player: { name: "ハーツクライ", odds: 9.0, adj: 0.18, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    rivals: [
+      { name: "ディープインパクト",   style: "追込",   adj: 0.30,  odds: 1.3 },
+      { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
+      { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
+      { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
+      { name: "ヘヴンリーロマンス",   style: "差し",   adj: 0.05,  odds: 18 },
+      { name: "デルタブルース",       style: "差し",   adj: 0.05,  odds: 24 },
+      { name: "コスモバルク",         style: "先行",   adj: 0.05,  odds: 28 },
+      { name: "スズカマンボ",         style: "先行",   adj: 0.0,   odds: 40 },
+      { name: "マッキーマックス",     style: "差し",   adj: -0.02, odds: 55 },
+      { name: "ビッグゴールド",       style: "逃げ",   adj: -0.05, odds: 75 },
+      { name: "オペラシチー",         style: "先行",   adj: -0.08, odds: 90 }
+    ]
+  },
+  {
+    title: "2006 天皇賞（春）", chapter: "第3章 英雄の衝撃", course: COURSES.kyotoOut, dist: 3200,
+    spdAdj: -0.1, pace: [61, 63], vision: "天皇賞(春) 芝3200m",
+    copy: "空を飛ぶ英雄の衝撃",
+    desc: "競馬界に最大の衝撃を与え続けた英雄の真骨頂。3200mの長距離でありながら、3コーナーから一気に加速して全馬を置き去りにする特殊ステージ。",
+    player: { name: "ディープインパクト", odds: 1.1, adj: 0.30, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
+    rivals: [
+      { name: "リンカーン",         style: "差し", adj: 0.12,  odds: 8.9 },
+      { name: "デルタブルース",     style: "差し", adj: 0.10,  odds: 9.7 },
+      { name: "アイポッパー",       style: "差し", adj: 0.08,  odds: 12 },
+      { name: "ストラタジェム",     style: "差し", adj: 0.08,  odds: 15 },
+      { name: "ナリタセンチュリー", style: "先行", adj: 0.02,  odds: 30 },
+      { name: "トウカイトリック",   style: "差し", adj: 0.02,  odds: 34 },
+      { name: "ファストタテヤマ",   style: "追込", adj: -0.02, odds: 51 },
+      { name: "マッキーマックス",   style: "差し", adj: 0.0,   odds: 46 },
+      { name: "チャクラ",           style: "先行", adj: -0.05, odds: 58 },
+      { name: "ビッグゴールド",     style: "逃げ", adj: -0.05, odds: 68 },
+      { name: "ワンモアチャッター", style: "先行", adj: -0.08, odds: 88 }
+    ]
+  },
+  // ══ 第4章 名牝 ══
+  {
+    title: "2020 ジャパンカップ", chapter: "第4章 気高き名牝たち", course: COURSES.tokyo, dist: 2400,
+    spdAdj: 0.45, pace: [58.5, 60.5], vision: "ジャパンカップ 芝2400m",
+    copy: "時代を背負う三翼、頂点を競う静かなる激突",
+    desc: "その年の三冠を分け合った俊英たちが集う、世代を超えた頂上決戦。有終の美を飾るため、若き強豪たちを封じ込める。",
+    player: { name: "アーモンドアイ", odds: 1.6, adj: 0.28, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
+    rivals: [
+      { name: "コントレイル",       style: "先行", adj: 0.20,  odds: 2.8 },
+      { name: "デアリングタクト",   style: "差し", adj: 0.15,  odds: 4.5 },
+      { name: "ワールドプレミア",   style: "差し", adj: 0.05,  odds: 11 },
+      { name: "フィエールマン",     style: "差し", adj: 0.05,  odds: 13 },
+      { name: "ラヴズオンリーユー", style: "先行", adj: 0.02,  odds: 15 },
+      { name: "キセキ",             style: "逃げ", adj: 0.0,   odds: 25 },
+      { name: "ダノンキングリー",   style: "先行", adj: -0.02, odds: 20 },
+      { name: "ウインブライト",     style: "先行", adj: -0.05, odds: 35 },
+      { name: "アリストテレス",     style: "先行", adj: -0.05, odds: 45 },
+      { name: "ペルシアンナイト",   style: "差し", adj: -0.08, odds: 55 },
+      { name: "ダノンプレミアム",   style: "差し", adj: -0.08, odds: 50 }
+    ]
+  },
+  {
+    title: "2020 スプリンターズS", chapter: "第4章 気高き名牝たち", course: COURSES.nakayamaOut, dist: 1200,
+    spdAdj: 1.5, pace: [55, 57], vision: "スプリンターズS 芝1200m",
+    copy: "電撃のスプリント、全てをねじ伏せる衝撃の末脚",
+    desc: "スタートでの出遅れを挽回するスプリント戦。道中は極限まで脚をため、直線に入った瞬間に一気怒濤の末脚でごぼう抜きを狙う。",
+    player: { name: "グランアレグリア", odds: 2.2, adj: 0.26, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99 },
+    rivals: [
+      { name: "ダノンスマッシュ",     style: "先行",   adj: 0.12,  odds: 4.6 },
+      { name: "モズスーパーフレア",   style: "大逃げ", adj: 0.08,  odds: 8.1 },
+      { name: "タワーオブロンドン",   style: "差し",   adj: 0.08,  odds: 9.3 },
+      { name: "アウィルアウェイ",     style: "差し",   adj: 0.05,  odds: 16 },
+      { name: "ビアンフェ",           style: "逃げ",   adj: 0.02,  odds: 18 },
+      { name: "レッドアンシェル",     style: "差し",   adj: 0.0,   odds: 26 },
+      { name: "ミスターメロディ",     style: "先行",   adj: 0.0,   odds: 30 },
+      { name: "セイウンコウセイ",     style: "先行",   adj: -0.02, odds: 45 },
+      { name: "クリノガウディー",     style: "差し",   adj: -0.02, odds: 50 },
+      { name: "ラブカンプー",         style: "逃げ",   adj: -0.05, odds: 60 },
+      { name: "キングハート",         style: "追込",   adj: -0.08, odds: 90 }
+    ]
+  },
+  {
+    title: "2020 宝塚記念", chapter: "第4章 気高き名牝たち", course: COURSES.hanshinIn, dist: 2200,
+    spdAdj: -0.15, drainMul: 1.15, pace: [60.5, 62.5], vision: "宝塚記念 芝2200m",
+    copy: "絶対的グランプリ女王、新時代の創生へ",
+    desc: "他の強豪牡馬たちが苦しむタフな重馬場。抜群のパワーと機動力でインを突いて突き抜け、グランプリ女王の座を確固たるものにする。",
+    player: { name: "クロノジェネシス", odds: 4.1, adj: 0.24, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    rivals: [
+      { name: "サートゥルナーリア", style: "先行", adj: 0.18,  odds: 2.4 },
+      { name: "ラッキーライラック", style: "差し", adj: 0.15,  odds: 4.9 },
+      { name: "グローリーヴェイズ", style: "差し", adj: 0.08,  odds: 9.7 },
+      { name: "ブラストワンピース", style: "差し", adj: 0.08,  odds: 11 },
+      { name: "キセキ",             style: "逃げ", adj: 0.05,  odds: 12 },
+      { name: "ワグネリアン",       style: "差し", adj: 0.05,  odds: 14 },
+      { name: "モズベッロ",         style: "差し", adj: 0.0,   odds: 46 },
+      { name: "スティッフェリオ",   style: "逃げ", adj: -0.02, odds: 55 },
+      { name: "カデナ",             style: "追込", adj: -0.05, odds: 65 },
+      { name: "ダンビュライト",     style: "先行", adj: -0.05, odds: 70 },
+      { name: "トーセンカンビーナ", style: "差し", adj: -0.08, odds: 85 }
+    ]
+  },
+  // ══ 第5章 現代 ══
+  {
+    title: "2021 皐月賞", chapter: "第5章 新時代の覇者", course: COURSES.nakayama, dist: 2000,
+    spdAdj: 0.25, pace: [60, 62], vision: "皐月賞 芝2000m",
+    copy: "強豪を撃墜し、新時代の快速王へ",
+    desc: "若き横山武史との新コンビ。抜群の操作性と快速を活かし、ロスなく最内を立ち回ってライバルたちを撃墜する精密な進路取りステージ。",
+    player: { name: "エフフォーリア", odds: 2.8, adj: 0.22, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xd23a2e },
+    rivals: [
+      { name: "タイトルホルダー",   style: "逃げ", adj: 0.12,  odds: 13 },
+      { name: "ダノンザキッド",     style: "先行", adj: 0.12,  odds: 3.9 },
+      { name: "ステラヴェローチェ", style: "差し", adj: 0.10,  odds: 9.5 },
+      { name: "アドマイヤハダル",   style: "先行", adj: 0.08,  odds: 8.2 },
+      { name: "ヨーホーレイク",     style: "差し", adj: 0.05,  odds: 15 },
+      { name: "グラティアス",       style: "先行", adj: 0.02,  odds: 12 },
+      { name: "ヴィクティファルス", style: "差し", adj: 0.02,  odds: 20 },
+      { name: "ラーゴム",           style: "先行", adj: 0.0,   odds: 24 },
+      { name: "ディープモンスター", style: "差し", adj: 0.0,   odds: 30 },
+      { name: "タイムトゥヘヴン",   style: "差し", adj: -0.05, odds: 66 },
+      { name: "アサマノイタズラ",   style: "追込", adj: -0.05, odds: 70 }
+    ]
+  },
+  {
+    title: "2022 天皇賞（秋）", chapter: "第5章 新時代の覇者", course: COURSES.tokyo, dist: 2000,
+    spdAdj: 0.4, pace: [59, 61], vision: "天皇賞(秋) 芝2000m",
+    copy: "幻影を切り裂き、いざ天才の証明へ",
+    desc: "世界一へと上り詰める天才の覚醒。パンサラッサが作った大差の幻影を、東京の長い直線だけで捉え切る極限のロングスパート戦。",
+    player: { name: "イクイノックス", odds: 2.6, adj: 0.25, coat: 0x26211c, mane: 0x171310, silk: 0x1c3f99 },
+    rivals: [
+      { name: "パンサラッサ",   style: "大逃げ", adj: 0.0,   odds: 8.9 },
+      { name: "ジャックドール", style: "先行",   adj: 0.1,   odds: 7.0 },
+      { name: "ダノンベルーガ", style: "差し",   adj: 0.12,  odds: 4.9 },
+      { name: "シャフリヤール", style: "差し",   adj: 0.15,  odds: 5.9 },
+      { name: "ジオグリフ",     style: "先行",   adj: 0.0,   odds: 14 },
+      { name: "マリアエレーナ", style: "差し",   adj: -0.05, odds: 21 },
+      { name: "ノースブリッジ", style: "先行",   adj: -0.1,  odds: 42 },
+      { name: "レイパパレ",     style: "先行",   adj: -0.02, odds: 26 },
+      { name: "バビット",       style: "逃げ",   adj: -0.05, odds: 91 },
+      { name: "ユーバーレーベン", style: "追込", adj: -0.05, odds: 58 },
+      { name: "カラテ",         style: "差し",   adj: -0.08, odds: 54 }
+    ]
+  },
+  {
+    title: "2023 有馬記念", chapter: "第5章 新時代の覇者", course: COURSES.nakayama, dist: 2500,
+    spdAdj: 0.05, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
+    copy: "人馬一体、復活の末脚",
+    desc: "怪我から復帰した名手との熱いコンビ再結成。中山の4コーナーから一気に外を捲り、自慢の末脚を爆発させた最高の逆襲劇を再現。",
+    player: { name: "ドウデュース", odds: 4.0, adj: 0.24, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    rivals: [
+      { name: "スターズオンアース",   style: "差し", adj: 0.18,  odds: 7.1 },
+      { name: "ジャスティンパレス",   style: "差し", adj: 0.15,  odds: 4.2 },
+      { name: "タイトルホルダー",     style: "逃げ", adj: 0.12,  odds: 5.3 },
+      { name: "シャフリヤール",       style: "差し", adj: 0.10,  odds: 9.9 },
+      { name: "ソールオリエンス",     style: "追込", adj: 0.08,  odds: 8.7 },
+      { name: "スルーセブンシーズ",   style: "差し", adj: 0.05,  odds: 12 },
+      { name: "ハーパー",             style: "先行", adj: 0.0,   odds: 35 },
+      { name: "ディープボンド",       style: "先行", adj: 0.0,   odds: 40 },
+      { name: "アイアンバローズ",     style: "逃げ", adj: -0.05, odds: 70 },
+      { name: "ライラック",           style: "追込", adj: -0.05, odds: 80 },
+      { name: "ホウオウエミーズ",     style: "差し", adj: -0.08, odds: 95 }
     ]
   }
 ];
+
+// 相手馬のcoat/silk省略時に使うデフォルトパレット（枠色に準じた12色+馬体色）
+const SILKS_DEF = [0xd23a2e, 0x2b6fdd, 0x2da84f, 0xe8c522, 0x8a3fd1, 0xe07a20,
+                   0x22b8c8, 0xe062a8, 0xf0f0f0, 0x7fd4ff, 0x9acd32, 0xb08968];
+const COATS_DEF = [0x9a5a2b, 0x6b4423, 0x5a3a22, 0x3a2c20, 0x7a5230, 0x5f4632, 0x352a1e, 0x4a2c17];
 
 // ==== コース座標系 ====
 // s: 周回距離, lane: ラチ(内柵)からの外向き距離
@@ -515,6 +742,11 @@ function initRace(raceIdx) {
   FINISH_S = GOAL_MOD + 2 * TRACK_LEN;
   START_S = FINISH_S - RACE.dist;
 
+  // 距離から消耗率・初期スタミナを自動スケーリング(1200〜3200m対応)。
+  // dist×drainKがほぼ一定(≈720)になるよう調整。drainMulで重馬場等を上乗せ
+  RACE.drainK = (720 / RACE.dist) * (RACE.drainMul || 1);
+  const staminaMax = Math.round(100 + (RACE.dist / 1600) * 12);
+
   const gates = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   horses = [];
   for (let i = 0; i < N; i++) {
@@ -523,17 +755,20 @@ function initRace(raceIdx) {
     const st = isPlayer ? null : STYLES[e.style];
     const rnd = function (a) { return (Math.random() * 2 - 1) * a; };
     const gate = gates[i];
+    // 相手馬のcoat/silk省略時は枠順からデフォルトパレットを割り当てる
+    const coat = e.coat != null ? e.coat : COATS_DEF[gate % COATS_DEF.length];
+    const silk = e.silk != null ? e.silk : SILKS_DEF[gate % SILKS_DEF.length];
     const h = {
-      idx: i, name: e.name, silk: e.silk, style: isPlayer ? "自在" : e.style, isPlayer: isPlayer,
+      idx: i, name: e.name, silk: silk, style: isPlayer ? "自在" : e.style, isPlayer: isPlayer,
       s: START_S - 2, v: 0, lane: 0.8 + gate * 1.15, targetLane: 0.8 + gate * 1.15,
       startLane: 0.8 + gate * 1.15, gate: gate,
-      stamina: 112, exhausted: false, phase: Math.random() * 6,   // ムチ3発分の余裕を持たせる
+      stamina: staminaMax, staminaMax: staminaMax, exhausted: false, phase: Math.random() * 6,
       kakari: isPlayer ? 0.25 : 0.2 + Math.random() * 0.25,
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
       reaction: 0.08 + Math.random() * 0.3,
-      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.15 - (demo ? 0.28 : 0) : 0,
-      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.15 - (demo ? 0.28 : 0) : 0,
+      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 : 0,
+      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 : 0,
       early: st ? st.early : 0,
       spurt: st ? st.spurt * (0.75 + RACE.dist / 6400) + rnd(40) : 0,
       wob: Math.random() * 10,
@@ -544,7 +779,7 @@ function initRace(raceIdx) {
       mesh: null
     };
     if (!isPlayer) {
-      h.mesh = buildHorseMesh(e.coat, e.silk, h.name);
+      h.mesh = buildHorseMesh(coat, silk, h.name);
       scene.add(h.mesh);
     }
     horses.push(h);
@@ -567,14 +802,12 @@ function initRace(raceIdx) {
   kakariWarned = false;
   // レースごとにペースが振れる(±0.3m/s) → ハイ/ミドル/スローが発生する
   paceBias = (Math.random() * 2 - 1) * 0.3;
-  if (demo) paceBias = 0;   // デモはミドルペース固定
 }
 
 // ==== 入力 ====
 const keys = {};
 let whipTimer = 0, whipCdTimer = 0, whipAnim = 0;
 let kakariWarned = false;   // 折り合いは各馬の h.kakari (0=完璧 1=完全に掛かる)
-let demo = false;
 
 function doWhip() {
   if (whipCdTimer > 0 || !pl || pl.finished || pl.stamina <= 2) return;
@@ -586,18 +819,17 @@ function doWhip() {
 
 addEventListener("keydown", function (e) {
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].indexOf(e.code) >= 0) e.preventDefault();
-  if (demo && e.code !== "KeyV") return;   // デモ中は後方確認以外の操作を受け付けない
   keys[e.code] = true;
   if (e.code === "Space" && state === "race") doWhip();
 });
-addEventListener("keyup", function (e) { if (!demo || e.code === "KeyV") keys[e.code] = false; });
+addEventListener("keyup", function (e) { keys[e.code] = false; });
 const down = function (c1, c2) { return keys[c1] || keys[c2]; };
 
 // ==== HUD ====
 const $ = function (id) { return document.getElementById(id); };
 const elDist = $("dist"), elRank = $("rank"), elStam = $("stamBar"),
       elSpeed = $("speed"), elMsg = $("msg"), elCount = $("count"),
-      elKoaiBar = $("koaiBar"), elDemoTip = $("demoTip"), elPos = $("posState"),
+      elKoaiBar = $("koaiBar"), elPos = $("posState"),
       elTime = $("rtime"), elPace = $("pace1000");
 let msgTimer = 0;
 function showMsg(t, dur) {
@@ -607,49 +839,6 @@ function showMsg(t, dur) {
 }
 const fired = {};
 function fireOnce(key, fn) { if (!fired[key]) { fired[key] = true; fn(); } }
-
-// ==== デモ自動操縦（勝ちパターンの再生） ====
-function setTip(t) { elDemoTip.textContent = "🎬 デモ — " + t; }
-
-function demoControl() {
-  keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
-  if (!pl || pl.finished) { setTip("ゴール！ これが勝ちパターン"); return; }
-  const rem = FINISH_S - pl.s;
-  const raced = pl.s - START_S;
-
-  // いちばん近い前の馬（スリップストリームの的）
-  let tgt = null;
-  for (let i = 1; i < horses.length; i++) {
-    const o = horses[i], ds = o.s - pl.s;
-    if (ds > 1 && ds < 15 && (!tgt || ds < tgt.ds)) tgt = { h: o, ds: ds };
-  }
-
-  if (raced < 450) {
-    // 好位抜け出し: 序盤の位置取りダッシュ（この区間は掛からない）
-    keys.ArrowUp = true;
-    if (pl.blocked) keys.ArrowRight = true;
-    setTip("序盤: ダッシュして2〜4番手の好位を確保（450mまでは掛からない）");
-  } else if (rem > 800) {
-    // 道中: 前の馬の真後ろで折り合いに専念
-    if (pl.blocked) keys.ArrowRight = true;   // 詰まったら掛かる前に横へ
-    else if (tgt) {
-      const dl = tgt.h.lane - pl.lane;
-      if (dl > 0.3) keys.ArrowRight = true;
-      else if (dl < -0.3) keys.ArrowLeft = true;
-    }
-    setTip(pl.slip ? "道中: 好位のポケットで折り合う（消耗-40%・デモは折り合い完璧の想定）"
-                   : "道中: 前の馬の真後ろへ進路を合わせる");
-  } else {
-    keys.ArrowUp = true;
-    if (pl.blocked) keys.ArrowRight = true;   // 詰まったら外へ
-    if (rem < GOAL_MOD) {
-      if (pl.stamina > 24) doWhip();   // バテるラインの手前までムチ
-      setTip("最終直線: 抜け出してムチ！（スタミナ24までは使ってよい）");
-    } else {
-      setTip("残り800m: 先頭を射程に入れて早めのスパート [↑]");
-    }
-  }
-}
 
 // ==== ミニマップ ====
 const mm = $("minimap").getContext("2d");
@@ -724,7 +913,7 @@ function updateHorse(h, dt) {
   h.cover = near.cover;
 
   // 残スタミナが多いほど末脚が伸びる（道中で溜めた脚の変換・最大+1.0）
-  const stamKick = Math.max(0, Math.min(1.0, (h.stamina - 28) * 0.03));
+  const stamKick = Math.max(0, Math.min(1.0, (h.stamina - h.staminaMax * 0.25) * 0.03));
   // 集団収束: 集団から千切れた馬（前に壁がいない馬）だけが脚を使って追走する。
   // 馬群内の馬には働かないので、押し合いによる団子化・馬群ごとの急減速が起きない
   const chase = near.cover ? 0 : Math.min(2.2, Math.max(0, (leadS - h.s) * 0.02));
@@ -742,6 +931,8 @@ function updateHorse(h, dt) {
     // 中弛み: 道中でペースが波打ち、馬群が縮んだり伸びたりする
     if (raced > 700 && rem > h.spurt + 250 && Math.sin((raced - 700) / 180) > 0.1) tv -= 0.25;
     if (rem < h.spurt) tv = h.maxV + stamKick;
+    // 最後400mは差し・追込だけ末脚ボーナスが乗る（局面限定の末脚強化）
+    if (rem < 400 && LATE_KICK[h.style]) tv += LATE_KICK[h.style];
     tv += rem < h.spurt ? chase : chase * 0.6;
     tv += Math.sin(raceTime * 0.7 + h.wob) * 0.15;
   }
@@ -765,17 +956,19 @@ function updateHorse(h, dt) {
         if (down("ArrowDown", "KeyS") && raced > 450) dk += 0.38;
       }
       // 逃げ・先行・大逃げは先頭が合っているので前が開いても平気。
-      // 差し・追込が図らずも先頭に立つと本来の競馬ができず大きく掛かる
+      // 差し・追込は「本当に先頭付近(2番手以内)まで進出してしまった」時だけ
+      // 本来の競馬ができず大きく掛かる。ただ前が開いているだけの中団なら軽い行きたがり止まり
       const suitedToLead = !h.isPlayer && (h.style === "大逃げ" || h.style === "逃げ" || h.style === "先行");
       if (!near.cover) {
         if (h.isPlayer) dk += 0.16;
-        else if (!suitedToLead) dk += 0.40;
+        else if (suitedToLead) { /* 先頭適性ありは追加なし */ }
+        else if (rankOf(h) <= 2) dk += 0.40;
+        else dk += 0.16;
       }
       if (h.blocked) dk += h.isPlayer ? 0.30 : 0.15; // 詰まると引っ掛かる(AI騎手は捌く)
       if (h.slip) dk -= 0.08;
     }
     if (raced < 300 && dk > 0) dk = 0;   // 最初の300mは掛かりが進行しない
-    if (demo && h.isPlayer) dk = -0.6;   // デモ騎手は折り合い完璧の想定
     h.kakari = Math.max(0, Math.min(1, h.kakari + dk * dt));
     if (h.kakari > 0.5) {
       // 掛かり: 抑えが利かなくなる
@@ -789,12 +982,13 @@ function updateHorse(h, dt) {
   }
 
   // スタミナが減ると脚色が鈍る（ソフトなバテ・下限つき）。前で消耗した馬は直線で捕まる
-  // 閾値10%からなだらかに落ち、0%で下限(16.0+adj)に達する
-  const BATE_THRESH = 10;
+  // 閾値10%(staminaMax比)からなだらかに落ち、0%で下限(16.0+adj)に達する
+  const BATE_THRESH = h.staminaMax * 0.1;
   if (h.stamina < BATE_THRESH) tv = Math.min(tv, (16.0 + RACE.spdAdj) + (h.stamina / BATE_THRESH) * 2.0);
 
-  // 加減速
-  const acc = h.v < 12 ? PLAYER.startAccel : PLAYER.accel;
+  // 加減速。最初300mは大逃げ・逃げ・先行だけ加速度が上がり、早くトップスピードに乗って先行できる
+  let acc = h.v < 12 ? PLAYER.startAccel : PLAYER.accel;
+  if (!h.isPlayer && raced < 300 && EARLY_ACCEL[h.style]) acc *= EARLY_ACCEL[h.style];
   if (h.v < tv) h.v = Math.min(tv, h.v + acc * dt);
   else h.v = Math.max(tv, h.v - 1.8 * dt);
 
@@ -851,12 +1045,12 @@ function updateHorse(h, dt) {
       else h.targetLane = h.blocked ? h.lane : h.cruiseLane;
       if (h.blocked) h.blockT += dt; else h.blockT = Math.max(0, h.blockT - dt);
       if (h.blockT > 1.5) {
-        h.drift = Math.min(11.4, h.lane + 1.6);
+        h.drift = Math.min(10, h.lane + 1.6);
         h.blockT = 0;
       }
     } else {
       h.targetLane = h.atkLane;
-      if (h.blocked) h.targetLane = Math.min(12.4, h.lane + 2.0);
+      if (h.blocked) h.targetLane = Math.min(11, h.lane + 2.0);
     }
     const dl = h.targetLane - h.lane;
     const lsp = rem < h.spurt ? 1.4 : 0.9;   // 道中の進路変更はゆっくり
@@ -939,7 +1133,7 @@ function showResult() {
   });
   $("resTable").innerHTML = html;
   const myRank = list.indexOf(pl) + 1;
-  $("resTitle").textContent = (demo ? "🎬 デモ: " : "") + RACE.title + " — " + (myRank === 1 ? "🏆 優勝！" : myRank + "着");
+  $("resTitle").textContent = RACE.title + " — " + (myRank === 1 ? "🏆 優勝！" : myRank + "着");
   $("result").classList.remove("hidden");
 }
 
@@ -955,15 +1149,25 @@ function updateCamera(dt) {
     fp.visible = false;
     return;
   }
-  const back = !!keys.KeyV;      // Vキー: 後方確認
-  fp.visible = !back;
+  // Vキー: 後方確認 / Cキー: 左確認 / Bキー: 右確認
+  const viewDir = keys.KeyV ? "back" : keys.KeyC ? "left" : keys.KeyB ? "right" : "front";
+  fp.visible = viewDir === "front";
   const p = posAt(pl.s, pl.lane);
   const spdF = Math.min(1, pl.v / 15);
   const bob = Math.sin(pl.phase) * 0.09 * spdF;
   const sway = Math.sin(pl.phase * 0.5) * 0.05 * spdF;
   camera.position.set(p.x + p.ox * sway, 2.0 + bob, p.z + p.oz * sway);
-  const look = posAt(pl.s + (back ? -30 : 25), pl.lane);
-  camera.lookAt(look.x, back ? 1.7 : 1.45, look.z);
+  let look, lookY;
+  if (viewDir === "back") {
+    look = posAt(pl.s - 30, pl.lane); lookY = 1.7;
+  } else if (viewDir === "left") {
+    look = { x: p.x - p.ox * 30, z: p.z - p.oz * 30 }; lookY = 1.6;
+  } else if (viewDir === "right") {
+    look = { x: p.x + p.ox * 30, z: p.z + p.oz * 30 }; lookY = 1.6;
+  } else {
+    look = posAt(pl.s + 25, pl.lane); lookY = 1.45;
+  }
+  camera.lookAt(look.x, lookY, look.z);
   camera.rotateZ(Math.sin(pl.phase * 0.5) * 0.018 * spdF + (whipAnim > 0 ? (Math.random() - 0.5) * 0.02 : 0));
 
   camera.fov = 72 + Math.max(0, pl.v - 13) * 1.1;
@@ -1045,7 +1249,7 @@ function updateHUD(dt) {
     }
     if (rem <= REM_CORNER) fireOnce("corner", function () { showMsg("3〜4コーナー！", 2); });
     if (rem <= GOAL_MOD) fireOnce("straight", function () { showMsg("最終直線" + Math.round(GOAL_MOD) + "m！ ラストスパート！", 2.5); });
-    if (pl.stamina < 22 && !pl.exhausted) fireOnce("lowstam", function () { showMsg("スタミナ残りわずか！", 2); });
+    if (pl.stamina < pl.staminaMax * 0.2 && !pl.exhausted) fireOnce("lowstam", function () { showMsg("スタミナ残りわずか！", 2); });
   }
 }
 
@@ -1072,7 +1276,6 @@ function animate(now) {
     if (whipTimer > 0) whipTimer -= dt;
     if (whipCdTimer > 0) whipCdTimer -= dt;
     if (whipAnim > 0) whipAnim -= dt;
-    if (demo) demoControl();
     playerLane(dt);
     leadS = -1e9;
     for (let i = 0; i < horses.length; i++) if (!horses[i].finished) leadS = Math.max(leadS, horses[i].s);
@@ -1140,17 +1343,6 @@ document.querySelectorAll(".raceBtn").forEach(function (btn) {
 });
 $("gateBtn").addEventListener("click", function () {
   if (state !== "title") return;
-  beginRace();
-});
-$("demoBtn").addEventListener("click", function (e) {
-  e.stopPropagation();
-  if (state !== "title") return;
-  demo = true;
-  initRace(2);   // 2022 天皇賞（秋）
-  pl.reaction = 0.05;              // デモはスタートを決める
-  elDemoTip.style.display = "block";
-  setTip("スタートを待つ…");
-  $("title").classList.add("hidden");
   beginRace();
 });
 $("retryBtn").addEventListener("click", function () { location.reload(); });

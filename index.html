@@ -33,22 +33,25 @@
   #koaiOuter { flex: 1; height: 8px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.5);
     border-radius: 4px; overflow: hidden; }
   #koaiBar { height: 100%; width: 60%; background: #3ec46d; }
-  #demoTip { display: none; position: absolute; top: 64px; left: 18px; max-width: 46%;
-    font-size: 16px; font-weight: bold; color: #7fe9ff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-  #demoBtn { pointer-events: auto; font-size: 15px; padding: 9px 26px; margin-bottom: 18px;
-    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.5); border-radius: 8px; color: #7fe9ff; }
-  #demoBtn:hover { background: rgba(127,233,255,.25); }
   #keyHint { position: absolute; bottom: 16px; right: 16px; font-size: 12px; opacity: .7; line-height: 1.7; text-align: right; }
   #msg { position: absolute; top: 26%; left: 0; right: 0; text-align: center;
     font-size: 44px; font-weight: bold; color: #ffe14d; opacity: 0; transition: opacity .25s; }
 
   .overlay { position: absolute; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; color: #fff; text-align: center; }
+    align-items: center; justify-content: center; color: #fff; text-align: center;
+    overflow-y: auto; }
+  .overlay::-webkit-scrollbar { width: 10px; }
+  .overlay::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 6px; }
   .hidden { display: none !important; }
-  #title { background: rgba(0,10,25,.78); }
+  #title { background: rgba(0,10,25,.78); justify-content: flex-start; padding: 40px 20px; }
   #title h1 { font-size: 40px; margin-bottom: 8px; }
   #title p { font-size: 15px; margin-bottom: 18px; opacity: .9; }
-  #raceList { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-bottom: 22px; }
+  #raceList { display: flex; flex-direction: column; gap: 10px; width: 100%;
+    max-width: 780px; margin-bottom: 22px; }
+  .chapter { text-align: left; }
+  .chapter h3 { font-size: 16px; color: #ffe14d; letter-spacing: .06em;
+    padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.25); }
+  .raceRow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 6px; }
   .raceBtn { pointer-events: auto; cursor: pointer; width: 230px; text-align: left;
     background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.35);
     border-radius: 12px; padding: 14px 18px; transition: background .15s, border-color .15s, transform .15s; }
@@ -98,8 +101,7 @@
     <div id="speed">0 km/h</div>
     <div id="koaiRow"><span>折り合い</span><div id="koaiOuter"><div id="koaiBar"></div></div></div>
   </div>
-  <div id="demoTip"></div>
-  <div id="keyHint">[↑/W] 追う　[↓/S] 抑える　[V] 後方確認<br>[←→/A・D] 進路　[SPACE] ムチ</div>
+  <div id="keyHint">[↑/W] 追う　[↓/S] 抑える　[V] 後方　[C] 左　[B] 右<br>[←→/A・D] 進路　[SPACE] ムチ</div>
   <div id="msg"></div>
 </div>
 
@@ -107,49 +109,145 @@
   <h1>🏇 ジョッキー視点レース</h1>
   <p>名馬に騎乗して歴史的レースを追体験 — レースを選んでスタート</p>
   <div id="raceList">
-    <div class="raceBtn" data-race="0">
-      <div class="ry">1997</div>
-      <div class="rt">天皇賞（春）</div>
-      <div class="rc">京都 芝3200m（外回り・右回り）</div>
-      <div class="rh">騎乗馬: マヤノトップガン</div>
-      <div class="rd">極限の淀、三強激突の向こう側へ</div>
+    <div class="chapter">
+      <h3>第1章　伝説の幕開け</h3>
+      <div class="raceRow">
+        <div class="raceBtn" data-race="0">
+          <div class="ry">1990</div>
+          <div class="rt">安田記念</div>
+          <div class="rc">東京 芝1600m（左回り）</div>
+          <div class="rh">騎乗馬: オグリキャップ</div>
+          <div class="rd">府中の静寂を破る、怪物の咆哮</div>
+        </div>
+        <div class="raceBtn" data-race="1">
+          <div class="ry">1992</div>
+          <div class="rt">ジャパンカップ</div>
+          <div class="rc">東京 芝2400m（左回り）</div>
+          <div class="rh">騎乗馬: トウカイテイオー</div>
+          <div class="rd">皇帝を超えた帝王、世界制覇の系譜</div>
+        </div>
+        <div class="raceBtn" data-race="2">
+          <div class="ry">1994</div>
+          <div class="rt">菊花賞</div>
+          <div class="rc">京都 芝3000m（外回り・右回り）</div>
+          <div class="rh">騎乗馬: ナリタブライアン</div>
+          <div class="rd">世紀の怪物が駆ける淀、圧倒的な強さで三冠へ</div>
+        </div>
+      </div>
     </div>
-    <div class="raceBtn" data-race="1">
-      <div class="ry">1999</div>
-      <div class="rt">有馬記念</div>
-      <div class="rc">中山 芝2500m（内回り・右回り）</div>
-      <div class="rh">騎乗馬: グラスワンダー</div>
-      <div class="rd">宿命のライバル、最後の死闘</div>
+    <div class="chapter">
+      <h3>第2章　最強黄金世代</h3>
+      <div class="raceRow">
+        <div class="raceBtn" data-race="3">
+          <div class="ry">1998</div>
+          <div class="rt">日本ダービー</div>
+          <div class="rc">東京 芝2400m（左回り）</div>
+          <div class="rh">騎乗馬: スペシャルウィーク</div>
+          <div class="rd">宿命の刻、世代の頂点へ</div>
+        </div>
+        <div class="raceBtn" data-race="4">
+          <div class="ry">1998</div>
+          <div class="rt">ジャパンカップ</div>
+          <div class="rc">東京 芝2400m（左回り）</div>
+          <div class="rh">騎乗馬: エルコンドルパサー</div>
+          <div class="rd">蘇る不死鳥、ライバルたちとの邂逅</div>
+        </div>
+        <div class="raceBtn" data-race="5">
+          <div class="ry">1999</div>
+          <div class="rt">有馬記念</div>
+          <div class="rc">中山 芝2500m（内回り・右回り）</div>
+          <div class="rh">騎乗馬: グラスワンダー</div>
+          <div class="rd">宿命のライバル激突、最後の死闘</div>
+        </div>
+      </div>
     </div>
-    <div class="raceBtn" data-race="2">
-      <div class="ry">2022</div>
-      <div class="rt">天皇賞（秋）</div>
-      <div class="rc">東京 芝2000m（左回り）</div>
-      <div class="rh">騎乗馬: イクイノックス</div>
-      <div class="rd">幻影を切り裂き、いざ天才の証明へ</div>
+    <div class="chapter">
+      <h3>第3章　英雄の衝撃</h3>
+      <div class="raceRow">
+        <div class="raceBtn" data-race="6">
+          <div class="ry">2004</div>
+          <div class="rt">日本ダービー</div>
+          <div class="rc">東京 芝2400m（左回り）</div>
+          <div class="rh">騎乗馬: キングカメハメハ</div>
+          <div class="rd">大王降臨、過酷なる死のダービー</div>
+        </div>
+        <div class="raceBtn" data-race="7">
+          <div class="ry">2005</div>
+          <div class="rt">有馬記念</div>
+          <div class="rc">中山 芝2500m（内回り・右回り）</div>
+          <div class="rh">騎乗馬: ハーツクライ</div>
+          <div class="rd">世紀の大金星へ、絶対王者を撃破せよ</div>
+        </div>
+        <div class="raceBtn" data-race="8">
+          <div class="ry">2006</div>
+          <div class="rt">天皇賞（春）</div>
+          <div class="rc">京都 芝3200m（外回り・右回り）</div>
+          <div class="rh">騎乗馬: ディープインパクト</div>
+          <div class="rd">空を飛ぶ英雄の衝撃</div>
+        </div>
+      </div>
     </div>
-    <div class="raceBtn" data-race="3">
-      <div class="ry">2005</div>
-      <div class="rt">日本ダービー</div>
-      <div class="rc">東京 芝2400m（左回り）</div>
-      <div class="rh">騎乗馬: ディープインパクト</div>
-      <div class="rd">天空を翔け抜け、無敗の二冠へ</div>
+    <div class="chapter">
+      <h3>第4章　気高き名牝たち</h3>
+      <div class="raceRow">
+        <div class="raceBtn" data-race="9">
+          <div class="ry">2020</div>
+          <div class="rt">ジャパンカップ</div>
+          <div class="rc">東京 芝2400m（左回り）</div>
+          <div class="rh">騎乗馬: アーモンドアイ</div>
+          <div class="rd">時代を背負う三翼、頂点を競う静かなる激突</div>
+        </div>
+        <div class="raceBtn" data-race="10">
+          <div class="ry">2020</div>
+          <div class="rt">スプリンターズS</div>
+          <div class="rc">中山 芝1200m（外回り・右回り）</div>
+          <div class="rh">騎乗馬: グランアレグリア</div>
+          <div class="rd">電撃のスプリント、全てをねじ伏せる衝撃の末脚</div>
+        </div>
+        <div class="raceBtn" data-race="11">
+          <div class="ry">2020</div>
+          <div class="rt">宝塚記念</div>
+          <div class="rc">阪神 芝2200m（内回り・右回り）</div>
+          <div class="rh">騎乗馬: クロノジェネシス</div>
+          <div class="rd">絶対的グランプリ女王、新時代の創生へ</div>
+        </div>
+      </div>
     </div>
-    <div class="raceBtn" data-race="4">
-      <div class="ry">1990</div>
-      <div class="rt">安田記念</div>
-      <div class="rc">東京 芝1600m（左回り）</div>
-      <div class="rh">騎乗馬: オグリキャップ</div>
-      <div class="rd">府中の静寂を破る、怪物の咆哮</div>
+    <div class="chapter">
+      <h3>第5章　新時代の覇者</h3>
+      <div class="raceRow">
+        <div class="raceBtn" data-race="12">
+          <div class="ry">2021</div>
+          <div class="rt">皐月賞</div>
+          <div class="rc">中山 芝2000m（内回り・右回り）</div>
+          <div class="rh">騎乗馬: エフフォーリア</div>
+          <div class="rd">強豪を撃墜し、新時代の快速王へ</div>
+        </div>
+        <div class="raceBtn" data-race="13">
+          <div class="ry">2022</div>
+          <div class="rt">天皇賞（秋）</div>
+          <div class="rc">東京 芝2000m（左回り）</div>
+          <div class="rh">騎乗馬: イクイノックス</div>
+          <div class="rd">幻影を切り裂き、いざ天才の証明へ</div>
+        </div>
+        <div class="raceBtn" data-race="14">
+          <div class="ry">2023</div>
+          <div class="rt">有馬記念</div>
+          <div class="rc">中山 芝2500m（内回り・右回り）</div>
+          <div class="rh">騎乗馬: ドウデュース</div>
+          <div class="rd">人馬一体、復活の末脚</div>
+        </div>
+      </div>
     </div>
   </div>
-  <button id="demoBtn">🎬 勝ち方デモを見る（天皇賞・秋を自動プレイ）</button>
   <table class="ctrl">
     <tr><td>↑ / W</td><td>追う（加速・スタミナ消費）</td></tr>
     <tr><td>↓ / S</td><td>抑える（消耗をほぼ止める。回復はしない）</td></tr>
     <tr><td>← → / A・D</td><td>進路変更（内・外）</td></tr>
     <tr><td>SPACE</td><td>ムチ（1.5秒加速・スタミナ消費）</td></tr>
     <tr><td>V</td><td>後ろを見る（押している間）</td></tr>
+    <tr><td>C</td><td>左を見る（押している間）</td></tr>
+    <tr><td>B</td><td>右を見る（押している間）</td></tr>
   </table>
   <p style="font-size:13px; opacity:.75; margin-bottom:14px">
     スタートから450mまでは位置取り自由（↑で押しても掛からない）。<br>
