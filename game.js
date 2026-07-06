@@ -23,12 +23,12 @@ let START_S = 0, FINISH_S = 0, RACE = null;
 const PLAYER = {
   easeV: 14.2,      // ↓抑え時の目標速度 (m/s)。drainBaseより低い=本当に回復する
   cruiseV: 16.3,    // ニュートラル
-  pushV: 18.4,      // ↑追い時（残スタミナが多いとさらに伸びる）
+  pushV: 18.6,      // ↑追い時（残スタミナが多いとさらに伸びる）
   // ムチ: スタミナを消費して一時加速（回数制限なし）。序盤に使うと掛かる
-  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 20.4,
+  whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 20.7,
   drainBase: 14.5,
   accel: 1.15, startAccel: 5.5,
-  minLane: 0.6, maxLane: 12, laneSpeed: 2.5
+  minLane: 0.6, maxLane: 13.6, laneSpeed: 2.5   // レーン幅+1.4m(馬2頭分)ぶん外側まで拡張
 };
 // 脚質: early=序盤の上乗せ(隊列形成), spurt=残り何mでスパート
 // 道中は後方脚質ほど巡航が僅かに速く、開いた差がじわじわ縮んで3〜4角で凝縮する。
@@ -49,7 +49,7 @@ const RACES = [
   {
     title: "1997 天皇賞（春）", course: COURSES.kyotoOut, dist: 3200,
     spdAdj: -0.1, drainK: 0.22, pace: [61, 63], vision: "天皇賞(春) 芝3200m",
-    player: { name: "マヤノトップガン", odds: 3.7, coat: 0x9a5a2b, mane: 0x6e3c17, silk: 0x2da84f },
+    player: { name: "マヤノトップガン", odds: 3.7, adj: 0.18, coat: 0x9a5a2b, mane: 0x6e3c17, silk: 0x2da84f },
     rivals: [
       { name: "サクラローレル",     style: "差し", adj: 0.22, odds: 1.5, coat: 0x9a5a2b, silk: 0xd23a2e },
       { name: "マーベラスサンデー", style: "差し", adj: 0.15, odds: 4.9, coat: 0x6b4423, silk: 0x2b6fdd },
@@ -67,7 +67,7 @@ const RACES = [
   {
     title: "1999 有馬記念", course: COURSES.nakayama, dist: 2500,
     spdAdj: 0.0, drainK: 0.29, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
-    player: { name: "グラスワンダー", odds: 2.8, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
+    player: { name: "グラスワンダー", odds: 2.8, adj: 0.20, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
     rivals: [
       { name: "スペシャルウィーク", style: "差し", adj: 0.22, odds: 3.0, coat: 0x33281e, silk: 0x2b6fdd },
       { name: "テイエムオペラオー", style: "先行", adj: 0.12, odds: 5.4, coat: 0x9a5a2b, silk: 0x2da84f },
@@ -85,7 +85,7 @@ const RACES = [
   {
     title: "2022 天皇賞（秋）", course: COURSES.tokyo, dist: 2000,
     spdAdj: 0.4, drainK: 0.36, pace: [59, 61], vision: "天皇賞(秋) 芝2000m",
-    player: { name: "イクイノックス", odds: 2.6, coat: 0x26211c, mane: 0x171310, silk: 0x1c3f99 },
+    player: { name: "イクイノックス", odds: 2.6, adj: 0.25, coat: 0x26211c, mane: 0x171310, silk: 0x1c3f99 },
     rivals: [
       { name: "パンサラッサ",   style: "大逃げ", adj: 0.0,   odds: 8.9, coat: 0x6b4423, silk: 0xd23a2e },
       { name: "ジャックドール", style: "先行",   adj: 0.1,   odds: 7.0, coat: 0x5a3a22, silk: 0xe8c522 },
@@ -103,7 +103,7 @@ const RACES = [
   {
     title: "2005 日本ダービー", course: COURSES.tokyo, dist: 2400,
     spdAdj: 0.2, drainK: 0.30, pace: [60, 62], vision: "日本ダービー 芝2400m",
-    player: { name: "ディープインパクト", odds: 1.1, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
+    player: { name: "ディープインパクト", odds: 1.1, adj: 0.28, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
     rivals: [
       { name: "コンゴウリキシオー", style: "逃げ", adj: 0.0,   odds: 33, coat: 0x9a6a33, silk: 0xd23a2e },
       { name: "インティライミ",     style: "先行", adj: 0.15,  odds: 14, coat: 0x6b4423, silk: 0x2da84f },
@@ -121,7 +121,7 @@ const RACES = [
   {
     title: "1990 安田記念", course: COURSES.tokyo, dist: 1600,
     spdAdj: 0.9, drainK: 0.45, pace: [57.5, 59.5], vision: "安田記念 芝1600m",
-    player: { name: "オグリキャップ", odds: 1.4, coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
+    player: { name: "オグリキャップ", odds: 1.4, adj: 0.18, coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
     rivals: [
       { name: "ケープポイント",   style: "逃げ", adj: -0.05, odds: 44, coat: 0x6b4423, silk: 0x2b6fdd },
       { name: "ヤエノムテキ",     style: "先行", adj: 0.15,  odds: 8.4, coat: 0x5a3a22, silk: 0x2da84f },
@@ -237,7 +237,7 @@ function buildCourse(cs) {
   sceneRoot.add(courseGroup);
   const scene = courseGroup;   // 以降の scene.add はコースグループに入る
 
-const trackShape = stadiumPath(R + 15, true);
+const trackShape = stadiumPath(R + 16.4, true);   // レーン幅+1.4m(馬2頭分)ぶん外側まで確保
 trackShape.holes.push(stadiumPath(R - 1.5, false));
 const track = new THREE.Mesh(
   new THREE.ShapeGeometry(trackShape, 64),
@@ -258,7 +258,7 @@ function railCurve(lane, y) {
 }
 const railMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
 scene.add(new THREE.Mesh(new THREE.TubeGeometry(railCurve(-0.3, 1.05), 520, 0.05, 6, true), railMat));
-scene.add(new THREE.Mesh(new THREE.TubeGeometry(railCurve(14.8, 1.05), 540, 0.05, 6, true), railMat));
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(railCurve(16.2, 1.05), 540, 0.05, 6, true), railMat));
 
 const postGeo = new THREE.CylinderGeometry(0.045, 0.045, 1.05, 5);
 const nPost = Math.ceil(TRACK_LEN / 8) * 2 + 4;
@@ -272,7 +272,7 @@ const posts = new THREE.InstancedMesh(postGeo, railMat, nPost);
     posts.setMatrixAt(i, m);
   }
   for (let s = 0; s < TRACK_LEN && i < nPost; s += 8, i++) {
-    const p = posAt(s, 14.8);
+    const p = posAt(s, 16.2);
     m.makeTranslation(p.x, 0.52, p.z);
     posts.setMatrixAt(i, m);
   }
@@ -313,7 +313,7 @@ scene.add(posts);
 // --- 残り距離標識 ---
 [200, 400, 600, 800, 1000].forEach(function (rem) {
   const s = ((GOAL_MOD - rem) % TRACK_LEN + TRACK_LEN) % TRACK_LEN;
-  const p = posAt(s, 16.8);
+  const p = posAt(s, 18.2);
   const sign = new THREE.Mesh(
     new THREE.PlaneGeometry(3.4, 1.8),
     new THREE.MeshBasicMaterial({ map: textCanvas("残り" + rem, { border: "#c22", size: 56 }), side: THREE.DoubleSide })
@@ -532,12 +532,15 @@ function initRace(raceIdx) {
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
       reaction: 0.08 + Math.random() * 0.3,
-      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 - (demo ? 0.28 : 0) : 0,
-      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 - (demo ? 0.28 : 0) : 0,
+      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.15 - (demo ? 0.28 : 0) : 0,
+      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.15 - (demo ? 0.28 : 0) : 0,
       early: st ? st.early : 0,
       spurt: st ? st.spurt * (0.75 + RACE.dist / 6400) + rnd(40) : 0,
       wob: Math.random() * 10,
       nextMove: 2 + Math.random() * 6, drift: null, atkLane: 0,
+      // 道中の巡航レーン: 全馬が同じ0.9に収束すると一列縦隊になるため、
+      // 枠順ベースで3列程度に自然分散させる（詰まればさらに外へdriftする）
+      cruiseLane: 0.9 + (gate % 3) * 1.3 + rnd(0.35),
       mesh: null
     };
     if (!isPlayer) {
@@ -726,11 +729,13 @@ function updateHorse(h, dt) {
   // 馬群内の馬には働かないので、押し合いによる団子化・馬群ごとの急減速が起きない
   const chase = near.cover ? 0 : Math.min(2.2, Math.max(0, (leadS - h.s) * 0.02));
   if (h.isPlayer) {
-    tv = PLAYER.cruiseV + RACE.spdAdj;
-    if (down("ArrowUp", "KeyW")) tv = PLAYER.pushV + RACE.spdAdj + (rem < 900 ? stamKick : 0);
-    if (down("ArrowDown", "KeyS")) tv = PLAYER.easeV + RACE.spdAdj;
+    // 史実の強さを反映した個体補正（他馬のe.adj*0.4と同じ換算）
+    const padj = (RACE.player.adj || 0) * 0.4;
+    tv = PLAYER.cruiseV + RACE.spdAdj + padj;
+    if (down("ArrowUp", "KeyW")) tv = PLAYER.pushV + RACE.spdAdj + padj + (rem < 900 ? stamKick : 0);
+    if (down("ArrowDown", "KeyS")) tv = PLAYER.easeV + RACE.spdAdj + padj;
     tv += rem < 900 ? chase : chase * 0.6;
-    if (whipTimer > 0) tv = Math.min(PLAYER.whipCap + RACE.spdAdj, tv + PLAYER.whipBoost);
+    if (whipTimer > 0) tv = Math.min(PLAYER.whipCap + RACE.spdAdj + padj, tv + PLAYER.whipBoost);
   } else {
     tv = h.cruise + paceBias;
     if (raced < 400) tv = h.cruise + h.early + paceBias;
@@ -759,8 +764,13 @@ function updateHorse(h, dt) {
         // 強く手綱を引くとハミを噛んで余計に掛かる（序盤の位置取りの抑えは対象外）
         if (down("ArrowDown", "KeyS") && raced > 450) dk += 0.38;
       }
-      const lone = !h.isPlayer && h.early > 0.5;   // 逃げ系は単騎でも折り合える
-      if (!near.cover && !lone) dk += 0.16;        // 前が開いていると行きたがる
+      // 逃げ・先行・大逃げは先頭が合っているので前が開いても平気。
+      // 差し・追込が図らずも先頭に立つと本来の競馬ができず大きく掛かる
+      const suitedToLead = !h.isPlayer && (h.style === "大逃げ" || h.style === "逃げ" || h.style === "先行");
+      if (!near.cover) {
+        if (h.isPlayer) dk += 0.16;
+        else if (!suitedToLead) dk += 0.40;
+      }
       if (h.blocked) dk += h.isPlayer ? 0.30 : 0.15; // 詰まると引っ掛かる(AI騎手は捌く)
       if (h.slip) dk -= 0.08;
     }
@@ -769,7 +779,7 @@ function updateHorse(h, dt) {
     h.kakari = Math.max(0, Math.min(1, h.kakari + dk * dt));
     if (h.kakari > 0.5) {
       // 掛かり: 抑えが利かなくなる
-      tv = Math.max(tv, (h.isPlayer ? PLAYER.cruiseV + RACE.spdAdj : h.cruise) + 0.5);
+      tv = Math.max(tv, (h.isPlayer ? PLAYER.cruiseV + RACE.spdAdj + (RACE.player.adj || 0) * 0.4 : h.cruise) + 0.5);
       if (h.isPlayer && h.kakari > 0.75 && !kakariWarned) {
         kakariWarned = true;
         showMsg("掛かった！ 壁の後ろで我慢させろ！", 2.2);
@@ -779,7 +789,9 @@ function updateHorse(h, dt) {
   }
 
   // スタミナが減ると脚色が鈍る（ソフトなバテ・下限つき）。前で消耗した馬は直線で捕まる
-  if (h.stamina < 15) tv = Math.min(tv, Math.max(16.0 + RACE.spdAdj, 13.6 + RACE.spdAdj + h.stamina * 0.3));
+  // 閾値10%からなだらかに落ち、0%で下限(16.0+adj)に達する
+  const BATE_THRESH = 10;
+  if (h.stamina < BATE_THRESH) tv = Math.min(tv, (16.0 + RACE.spdAdj) + (h.stamina / BATE_THRESH) * 2.0);
 
   // 加減速
   const acc = h.v < 12 ? PLAYER.startAccel : PLAYER.accel;
@@ -805,7 +817,7 @@ function updateHorse(h, dt) {
     if (o === h || o.finished) continue;
     if (Math.abs(o.s - h.s) < 1.6 && Math.abs(o.lane - h.lane) < 0.7) {
       h.lane += (h.lane >= o.lane ? 1 : -1) * 1.2 * dt;
-      h.lane = Math.max(0.3, Math.min(12.5, h.lane));
+      h.lane = Math.max(0.3, Math.min(13.9, h.lane));
       break;
     }
   }
@@ -829,19 +841,22 @@ function updateHorse(h, dt) {
   // 進路（AI）: 道中は原則ラチ沿いの隊列。長く詰まった時だけ外へ持ち出す（まくり）。
   // スパートでは各馬の攻め進路に持ち出して直線でばらける
   if (!h.isPlayer) {
-    if (rem >= h.spurt) {
-      // 基本は内へ寄せるが、詰まっている時は無理に突っ込まない。
-      // 長く詰まったら外の列に移り、道中はその列を守る（隊列が2〜3列に分散する）
+    if (raced < 100) {
+      // 最初の100mはゲートの隊形のまま直進（密集回避）。寄せ・まくりは一切しない
+      h.targetLane = h.startLane;
+    } else if (rem >= h.spurt) {
+      // 基本は各馬固有の巡航レーン(cruiseLane)へ寄せるが、詰まっている時は無理に突っ込まない。
+      // 長く詰まったら外の列に移り、道中はその列を守る（隊列が自然に2〜3列へ分散する）
       if (h.drift != null) h.targetLane = h.drift;
-      else h.targetLane = h.blocked ? h.lane : 0.9;
+      else h.targetLane = h.blocked ? h.lane : h.cruiseLane;
       if (h.blocked) h.blockT += dt; else h.blockT = Math.max(0, h.blockT - dt);
       if (h.blockT > 1.5) {
-        h.drift = Math.min(10, h.lane + 1.6);
+        h.drift = Math.min(11.4, h.lane + 1.6);
         h.blockT = 0;
       }
     } else {
       h.targetLane = h.atkLane;
-      if (h.blocked) h.targetLane = Math.min(11, h.lane + 2.0);
+      if (h.blocked) h.targetLane = Math.min(12.4, h.lane + 2.0);
     }
     const dl = h.targetLane - h.lane;
     const lsp = rem < h.spurt ? 1.4 : 0.9;   // 道中の進路変更はゆっくり
@@ -878,6 +893,7 @@ function sideBlocked(h, dir) {
 
 function playerLane(dt) {
   if (pl.finished) return;
+  if (pl.s - START_S < 100) return;   // 最初の100mは全馬まっすぐ（密集回避）
   let d = 0;
   if (down("ArrowRight", "KeyD")) d += 1;
   if (down("ArrowLeft", "KeyA")) d -= 1;
@@ -1013,13 +1029,14 @@ function updateHUD(dt) {
         fireOnce("pace1000", function () {
           showMsg("1000m通過 " + t1000.toFixed(1) + "秒 — " + label + "ペース", 2.6);
           elPace.textContent = "前半1000m " + t1000.toFixed(1) + "s（" + label + "）";
-          // ハイペースなら前にいる馬(5番手以内)の消耗が増え、スローなら軽くなる
+          // ハイペースなら前にいる馬(5番手以内)は消耗が増え、後方の馬は温存されて有利に。
+          // スローペースはその逆（前残りしやすい）。前後で対称に効かせる（プレイヤーも対象）
           const eff = label === "ハイ" ? 1 : label === "スロー" ? -1 : 0;
           if (eff !== 0) {
             for (let i = 0; i < horses.length; i++) {
               const o = horses[i];
               const r = rankOf(o);
-              o.paceMul = r <= 5 ? (eff > 0 ? 1.12 : 0.90) : (eff > 0 ? 0.98 : 1.02);
+              o.paceMul = r <= 5 ? (eff > 0 ? 1.12 : 0.88) : (eff > 0 ? 0.88 : 1.12);
             }
             if (eff > 0) showMsg("1000m通過 " + t1000.toFixed(1) + "秒 — ハイペース！ 前は苦しい", 2.6);
           }
