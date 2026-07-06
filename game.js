@@ -1161,9 +1161,10 @@ function updateCamera(dt) {
   if (viewDir === "back") {
     look = posAt(pl.s - 30, pl.lane); lookY = 1.7;
   } else if (viewDir === "left") {
-    look = { x: p.x - p.ox * 30, z: p.z - p.oz * 30 }; lookY = 1.6;
+    // DIR: 左回りは+ox方向=右回りは-ox方向が実際の左（進路キーと同じ補正）
+    look = { x: p.x - p.ox * 30 * DIR, z: p.z - p.oz * 30 * DIR }; lookY = 1.6;
   } else if (viewDir === "right") {
-    look = { x: p.x + p.ox * 30, z: p.z + p.oz * 30 }; lookY = 1.6;
+    look = { x: p.x + p.ox * 30 * DIR, z: p.z + p.oz * 30 * DIR }; lookY = 1.6;
   } else {
     look = posAt(pl.s + 25, pl.lane); lookY = 1.45;
   }
