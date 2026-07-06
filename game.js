@@ -101,7 +101,7 @@ const RACES = [
     desc: "七冠馬たる父シンボリルドルフに続き、大怪我を乗り越えた帝王トウカイテイオーが親子制覇の偉業に挑む国際大決戦。",
     player: { name: "トウカイテイオー", odds: 4.9, adj: 0.10, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ナチュラリズム",       style: "差し", adj: 0.15,  odds: 4.1 },
+      { name: "ナチュラリズム",       style: "差し", adj: 0.75,  odds: 2.0, immuneKakari: true },
       { name: "ユーザーフレンドリー", style: "差し", adj: 0.10,  odds: 3.2 },
       { name: "ディアドクター",       style: "差し", adj: 0.12,  odds: 7.3 },
       { name: "レガシーワールド",     style: "先行", adj: 0.10,  odds: 9.6 },
@@ -162,7 +162,7 @@ const RACES = [
     desc: "スペシャルウィークとのラストバトル。ライバルの猛追を紙一重で凌ぎ切る、中山の坂でのシビアな死闘を再現。",
     player: { name: "グラスワンダー", odds: 2.8, adj: 0.10, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
     rivals: [
-      { name: "スペシャルウィーク", style: "差し", adj: 0.22, odds: 3.0 },
+      { name: "スペシャルウィーク", style: "差し", adj: 1.2, odds: 1.8, immuneKakari: true },
       { name: "テイエムオペラオー", style: "先行", adj: 0.12, odds: 5.4 },
       { name: "ツルマルツヨシ",     style: "先行", adj: 0.08, odds: 9.8 },
       { name: "メジロブライト",     style: "追込", adj: 0.05, odds: 15 },
@@ -223,7 +223,7 @@ const RACES = [
     desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
     player: { name: "ハーツクライ", odds: 9.0, adj: 0.08, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ディープインパクト",   style: "追込",   adj: 2.0,  odds: 1.3 },
+      { name: "ディープインパクト",   style: "追込",   adj: 2.0,  odds: 1.3, immuneKakari: true },
       { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
       { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
       { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
@@ -284,7 +284,7 @@ const RACES = [
     desc: "スタートでの出遅れを挽回するスプリント戦。道中は極限まで脚をため、直線に入った瞬間に一気怒濤の末脚でごぼう抜きを狙う。",
     player: { name: "グランアレグリア", odds: 2.2, adj: 0.16, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99 },
     rivals: [
-      { name: "ダノンスマッシュ",     style: "先行",   adj: 0.12,  odds: 4.6 },
+      { name: "ダノンスマッシュ",     style: "先行",   adj: 3.5,  odds: 1.8 },
       { name: "モズスーパーフレア",   style: "大逃げ", adj: 0.08,  odds: 8.1 },
       { name: "タワーオブロンドン",   style: "差し",   adj: 0.08,  odds: 9.3 },
       { name: "アウィルアウェイ",     style: "差し",   adj: 0.05,  odds: 16 },
@@ -345,7 +345,7 @@ const RACES = [
     desc: "怪我から復帰した名手との熱いコンビ再結成。中山の4コーナーから一気に外を捲り、自慢の末脚を爆発させた最高の逆襲劇を再現。",
     player: { name: "ドウデュース", odds: 4.0, adj: 0.14, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "スターズオンアース",   style: "差し", adj: 0.18,  odds: 7.1 },
+      { name: "スターズオンアース",   style: "差し", adj: 0.75,  odds: 3.0, immuneKakari: true },
       { name: "ジャスティンパレス",   style: "差し", adj: 0.15,  odds: 4.2 },
       { name: "タイトルホルダー",     style: "逃げ", adj: 0.12,  odds: 5.3 },
       { name: "シャフリヤール",       style: "差し", adj: 0.10,  odds: 9.9 },
@@ -776,6 +776,8 @@ function initRace(raceIdx) {
       // 道中の巡航レーン: 全馬が同じ0.9に収束すると一列縦隊になるため、
       // 枠順ベースで3列程度に自然分散させる（詰まればさらに外へdriftする）
       cruiseLane: 0.9 + (gate % 3) * 1.3 + rnd(0.35),
+      // 個別馬の掛かり免除フラグ（脚質に合わない先頭進出でも掛からない特別枠）
+      immuneKakari: !isPlayer && !!e.immuneKakari,
       mesh: null
     };
     if (!isPlayer) {
@@ -958,7 +960,7 @@ function updateHorse(h, dt) {
       // 逃げ・先行・大逃げは先頭が合っているので前が開いても平気。
       // 差し・追込は「本当に先頭付近(2番手以内)まで進出してしまった」時だけ
       // 本来の競馬ができず大きく掛かる。ただ前が開いているだけの中団なら軽い行きたがり止まり
-      const suitedToLead = !h.isPlayer && (h.style === "大逃げ" || h.style === "逃げ" || h.style === "先行");
+      const suitedToLead = !h.isPlayer && (h.style === "大逃げ" || h.style === "逃げ" || h.style === "先行" || h.immuneKakari);
       if (!near.cover) {
         if (h.isPlayer) dk += 0.16;
         else if (suitedToLead) { /* 先頭適性ありは追加なし */ }
