@@ -30,7 +30,7 @@ const PLAYER = {
   whipBoost: 1.2, whipTime: 1.5, whipCd: 1.2, whipCost: 2, whipCap: 20.4,
   drainBase: 14.5,
   accel: 1.15, startAccel: 5.5,
-  minLane: 0.6, maxLane: 13.6, laneSpeed: 2.5   // レーン幅+1.4m(馬2頭分)ぶん外側まで拡張
+  minLane: 0.6, maxLane: 15.0, laneSpeed: 2.5   // レーン幅+2.8m(馬4頭分)ぶん外側まで拡張(2026-07追加+1.4m)
 };
 // 脚質: early=序盤の上乗せ(隊列形成), spurt=残り何mでスパート。
 // cruise/maxVは全脚質共通の基礎値に統一(2026-07再設計)。能力(adj)差だけで
@@ -59,7 +59,7 @@ const RACES = [
     spdAdj: 0.9, pace: [57.5, 59.5], vision: "安田記念 芝1600m",
     copy: "府中の静寂を破る、怪物の咆哮",
     desc: "マイルの舞台で繰り広げられる直線一気の高速決戦。芦毛の怪物の底力を体験する基礎チュートリアルステージ。",
-    player: { name: "オグリキャップ", odds: 1.4, adj: 0.18, coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
+    player: { name: "オグリキャップ", odds: 1.4, adj: 0.23, coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
     rivals: [
       { name: "ケープポイント",   style: "逃げ", adj: -0.05, odds: 44 },
       { name: "ヤエノムテキ",     style: "先行", adj: 0.15,  odds: 8.4 },
@@ -75,31 +75,11 @@ const RACES = [
     ]
   },
   {
-    title: "1992 ジャパンカップ", chapter: "第1章 伝説の幕開け", course: COURSES.tokyo, dist: 2400,
-    spdAdj: 0.25, pace: [59.5, 61.5], vision: "ジャパンカップ 芝2400m",
-    copy: "皇帝を超えた帝王、世界制覇の系譜",
-    desc: "七冠馬たる父シンボリルドルフに続き、大怪我を乗り越えた帝王トウカイテイオーが親子制覇の偉業に挑む国際大決戦。",
-    player: { name: "トウカイテイオー", odds: 4.9, adj: 0.20, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
-    rivals: [
-      { name: "ナチュラリズム",       style: "差し", adj: 0.15,  odds: 4.1 },
-      { name: "ユーザーフレンドリー", style: "差し", adj: 0.10,  odds: 3.2 },
-      { name: "ディアドクター",       style: "差し", adj: 0.12,  odds: 7.3 },
-      { name: "レガシーワールド",     style: "先行", adj: 0.10,  odds: 9.6 },
-      { name: "レッツイロープ",       style: "先行", adj: 0.05,  odds: 12 },
-      { name: "ドクターデヴィアス",   style: "差し", adj: 0.02,  odds: 15 },
-      { name: "クエストフォーフェイム", style: "差し", adj: 0.05, odds: 18 },
-      { name: "カミノクレッセ",       style: "先行", adj: 0.0,   odds: 33 },
-      { name: "イクノディクタス",     style: "先行", adj: -0.02, odds: 46 },
-      { name: "ヒシマサル",           style: "追込", adj: -0.05, odds: 55 },
-      { name: "ハシルショウグン",     style: "逃げ", adj: -0.05, odds: 70 }
-    ]
-  },
-  {
     title: "1994 菊花賞", chapter: "第1章 伝説の幕開け", course: COURSES.kyotoOut, dist: 3000,
     spdAdj: -0.05, pace: [61, 63], vision: "菊花賞 芝3000m",
     copy: "世紀の怪物が駆ける淀、圧倒的な強さで三冠へ",
     desc: "圧倒的な実力差を見せつけてきた怪物の集大成。3000mの長距離を完璧にコントロールし、無敗の三冠の系譜を完成させる。",
-    player: { name: "ナリタブライアン", odds: 1.5, adj: 0.28, coat: 0x3a2c20, mane: 0x1d130b, silk: 0x2b6fdd },
+    player: { name: "ナリタブライアン", odds: 1.5, adj: 0.33, coat: 0x3a2c20, mane: 0x1d130b, silk: 0x2b6fdd },
     rivals: [
       { name: "ヤシマソブリン",     style: "差し", adj: 0.08,  odds: 13 },
       { name: "エアダブリン",       style: "先行", adj: 0.12,  odds: 5.6 },
@@ -112,6 +92,26 @@ const RACES = [
       { name: "ゴーゴーゼット",     style: "差し", adj: -0.05, odds: 60 },
       { name: "フジノマッケンオー", style: "先行", adj: -0.05, odds: 55 },
       { name: "トーワダーリン",     style: "差し", adj: -0.08, odds: 80 }
+    ]
+  },
+  {
+    title: "1992 ジャパンカップ", chapter: "第1章 伝説の幕開け", course: COURSES.tokyo, dist: 2400,
+    spdAdj: 0.25, pace: [59.5, 61.5], vision: "ジャパンカップ 芝2400m",
+    copy: "皇帝を超えた帝王、世界制覇の系譜",
+    desc: "七冠馬たる父シンボリルドルフに続き、大怪我を乗り越えた帝王トウカイテイオーが親子制覇の偉業に挑む国際大決戦。",
+    player: { name: "トウカイテイオー", odds: 4.9, adj: 0.25, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    rivals: [
+      { name: "ナチュラリズム",       style: "差し", adj: 0.15,  odds: 4.1 },
+      { name: "ユーザーフレンドリー", style: "差し", adj: 0.10,  odds: 3.2 },
+      { name: "ディアドクター",       style: "差し", adj: 0.12,  odds: 7.3 },
+      { name: "レガシーワールド",     style: "先行", adj: 0.10,  odds: 9.6 },
+      { name: "レッツイロープ",       style: "先行", adj: 0.05,  odds: 12 },
+      { name: "ドクターデヴィアス",   style: "差し", adj: 0.02,  odds: 15 },
+      { name: "クエストフォーフェイム", style: "差し", adj: 0.05, odds: 18 },
+      { name: "カミノクレッセ",       style: "先行", adj: 0.0,   odds: 33 },
+      { name: "イクノディクタス",     style: "先行", adj: -0.02, odds: 46 },
+      { name: "ヒシマサル",           style: "追込", adj: -0.05, odds: 55 },
+      { name: "ハシルショウグン",     style: "逃げ", adj: -0.05, odds: 70 }
     ]
   },
   // ══ 第2章 黄金世代 ══
@@ -175,13 +175,33 @@ const RACES = [
       { name: "ダイワオーシュウ",   style: "差し", adj: -0.1, odds: 88 }
     ]
   },
-  // ══ 第3章 ディープ近辺 ══
+  // ══ 第3章 英雄の衝撃 ══
+  {
+    title: "2006 天皇賞（春）", chapter: "第3章 英雄の衝撃", course: COURSES.kyotoOut, dist: 3200,
+    spdAdj: -0.1, pace: [61, 63], vision: "天皇賞(春) 芝3200m",
+    copy: "空を飛ぶ英雄の衝撃",
+    desc: "競馬界に最大の衝撃を与え続けた英雄の真骨頂。3200mの長距離でありながら、3コーナーから一気に加速して全馬を置き去りにする特殊ステージ。",
+    player: { name: "ディープインパクト", odds: 1.1, adj: 0.25, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
+    rivals: [
+      { name: "リンカーン",         style: "差し", adj: 0.12,  odds: 8.9 },
+      { name: "デルタブルース",     style: "差し", adj: 0.10,  odds: 9.7 },
+      { name: "アイポッパー",       style: "差し", adj: 0.08,  odds: 12 },
+      { name: "ストラタジェム",     style: "差し", adj: 0.08,  odds: 15 },
+      { name: "ナリタセンチュリー", style: "先行", adj: 0.02,  odds: 30 },
+      { name: "トウカイトリック",   style: "差し", adj: 0.02,  odds: 34 },
+      { name: "ファストタテヤマ",   style: "追込", adj: -0.02, odds: 51 },
+      { name: "マッキーマックス",   style: "差し", adj: 0.0,   odds: 46 },
+      { name: "チャクラ",           style: "先行", adj: -0.05, odds: 58 },
+      { name: "ビッグゴールド",     style: "逃げ", adj: -0.05, odds: 68 },
+      { name: "ワンモアチャッター", style: "先行", adj: -0.08, odds: 88 }
+    ]
+  },
   {
     title: "2004 日本ダービー", chapter: "第3章 英雄の衝撃", course: COURSES.tokyo, dist: 2400,
     spdAdj: 0.3, pace: [58.8, 60.8], vision: "日本ダービー 芝2400m",
     copy: "大王降臨、過酷なる死のダービー",
     desc: "あまりのハイペースと過酷さから死のダービーと称された一戦。大王の圧倒的なスピードとスタミナで、限界の壁を突破する。",
-    player: { name: "キングカメハメハ", odds: 2.1, adj: 0.26, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
+    player: { name: "キングカメハメハ", odds: 2.1, adj: 0.21, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0xe8c522 },
     rivals: [
       { name: "ハーツクライ",       style: "差し",   adj: 0.15,  odds: 11 },
       { name: "ハイアーゲーム",     style: "差し",   adj: 0.12,  odds: 6.8 },
@@ -201,9 +221,9 @@ const RACES = [
     spdAdj: 0.05, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
     copy: "世紀の大金星へ、絶対王者を撃破せよ",
     desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
-    player: { name: "ハーツクライ", odds: 9.0, adj: 0.18, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    player: { name: "ハーツクライ", odds: 9.0, adj: 0.13, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ディープインパクト",   style: "追込",   adj: 0.30,  odds: 1.3 },
+      { name: "ディープインパクト",   style: "追込",   adj: 0.45,  odds: 1.15 },
       { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
       { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
       { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
@@ -214,26 +234,6 @@ const RACES = [
       { name: "マッキーマックス",     style: "差し",   adj: -0.02, odds: 55 },
       { name: "ビッグゴールド",       style: "逃げ",   adj: -0.05, odds: 75 },
       { name: "オペラシチー",         style: "先行",   adj: -0.08, odds: 90 }
-    ]
-  },
-  {
-    title: "2006 天皇賞（春）", chapter: "第3章 英雄の衝撃", course: COURSES.kyotoOut, dist: 3200,
-    spdAdj: -0.1, pace: [61, 63], vision: "天皇賞(春) 芝3200m",
-    copy: "空を飛ぶ英雄の衝撃",
-    desc: "競馬界に最大の衝撃を与え続けた英雄の真骨頂。3200mの長距離でありながら、3コーナーから一気に加速して全馬を置き去りにする特殊ステージ。",
-    player: { name: "ディープインパクト", odds: 1.1, adj: 0.30, coat: 0x4a2c17, mane: 0x1d130b, silk: 0x2b6fdd },
-    rivals: [
-      { name: "リンカーン",         style: "差し", adj: 0.12,  odds: 8.9 },
-      { name: "デルタブルース",     style: "差し", adj: 0.10,  odds: 9.7 },
-      { name: "アイポッパー",       style: "差し", adj: 0.08,  odds: 12 },
-      { name: "ストラタジェム",     style: "差し", adj: 0.08,  odds: 15 },
-      { name: "ナリタセンチュリー", style: "先行", adj: 0.02,  odds: 30 },
-      { name: "トウカイトリック",   style: "差し", adj: 0.02,  odds: 34 },
-      { name: "ファストタテヤマ",   style: "追込", adj: -0.02, odds: 51 },
-      { name: "マッキーマックス",   style: "差し", adj: 0.0,   odds: 46 },
-      { name: "チャクラ",           style: "先行", adj: -0.05, odds: 58 },
-      { name: "ビッグゴールド",     style: "逃げ", adj: -0.05, odds: 68 },
-      { name: "ワンモアチャッター", style: "先行", adj: -0.08, odds: 88 }
     ]
   },
   // ══ 第4章 名牝 ══
@@ -258,26 +258,6 @@ const RACES = [
     ]
   },
   {
-    title: "2020 スプリンターズS", chapter: "第4章 気高き名牝たち", course: COURSES.nakayamaOut, dist: 1200,
-    spdAdj: 1.5, pace: [55, 57], vision: "スプリンターズS 芝1200m",
-    copy: "電撃のスプリント、全てをねじ伏せる衝撃の末脚",
-    desc: "スタートでの出遅れを挽回するスプリント戦。道中は極限まで脚をため、直線に入った瞬間に一気怒濤の末脚でごぼう抜きを狙う。",
-    player: { name: "グランアレグリア", odds: 2.2, adj: 0.26, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99 },
-    rivals: [
-      { name: "ダノンスマッシュ",     style: "先行",   adj: 0.12,  odds: 4.6 },
-      { name: "モズスーパーフレア",   style: "大逃げ", adj: 0.08,  odds: 8.1 },
-      { name: "タワーオブロンドン",   style: "差し",   adj: 0.08,  odds: 9.3 },
-      { name: "アウィルアウェイ",     style: "差し",   adj: 0.05,  odds: 16 },
-      { name: "ビアンフェ",           style: "逃げ",   adj: 0.02,  odds: 18 },
-      { name: "レッドアンシェル",     style: "差し",   adj: 0.0,   odds: 26 },
-      { name: "ミスターメロディ",     style: "先行",   adj: 0.0,   odds: 30 },
-      { name: "セイウンコウセイ",     style: "先行",   adj: -0.02, odds: 45 },
-      { name: "クリノガウディー",     style: "差し",   adj: -0.02, odds: 50 },
-      { name: "ラブカンプー",         style: "逃げ",   adj: -0.05, odds: 60 },
-      { name: "キングハート",         style: "追込",   adj: -0.08, odds: 90 }
-    ]
-  },
-  {
     title: "2020 宝塚記念", chapter: "第4章 気高き名牝たち", course: COURSES.hanshinIn, dist: 2200,
     spdAdj: -0.15, drainMul: 1.15, pace: [60.5, 62.5], vision: "宝塚記念 芝2200m",
     copy: "絶対的グランプリ女王、新時代の創生へ",
@@ -295,6 +275,26 @@ const RACES = [
       { name: "カデナ",             style: "追込", adj: -0.05, odds: 65 },
       { name: "ダンビュライト",     style: "先行", adj: -0.05, odds: 70 },
       { name: "トーセンカンビーナ", style: "差し", adj: -0.08, odds: 85 }
+    ]
+  },
+  {
+    title: "2020 スプリンターズS", chapter: "第4章 気高き名牝たち", course: COURSES.nakayamaOut, dist: 1200,
+    spdAdj: 1.5, pace: [55, 57], vision: "スプリンターズS 芝1200m",
+    copy: "電撃のスプリント、全てをねじ伏せる衝撃の末脚",
+    desc: "スタートでの出遅れを挽回するスプリント戦。道中は極限まで脚をため、直線に入った瞬間に一気怒濤の末脚でごぼう抜きを狙う。",
+    player: { name: "グランアレグリア", odds: 2.2, adj: 0.26, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99 },
+    rivals: [
+      { name: "ダノンスマッシュ",     style: "先行",   adj: 0.12,  odds: 4.6 },
+      { name: "モズスーパーフレア",   style: "大逃げ", adj: 0.08,  odds: 8.1 },
+      { name: "タワーオブロンドン",   style: "差し",   adj: 0.08,  odds: 9.3 },
+      { name: "アウィルアウェイ",     style: "差し",   adj: 0.05,  odds: 16 },
+      { name: "ビアンフェ",           style: "逃げ",   adj: 0.02,  odds: 18 },
+      { name: "レッドアンシェル",     style: "差し",   adj: 0.0,   odds: 26 },
+      { name: "ミスターメロディ",     style: "先行",   adj: 0.0,   odds: 30 },
+      { name: "セイウンコウセイ",     style: "先行",   adj: -0.02, odds: 45 },
+      { name: "クリノガウディー",     style: "差し",   adj: -0.02, odds: 50 },
+      { name: "ラブカンプー",         style: "逃げ",   adj: -0.05, odds: 60 },
+      { name: "キングハート",         style: "追込",   adj: -0.08, odds: 90 }
     ]
   },
   // ══ 第5章 現代 ══
@@ -464,7 +464,7 @@ function buildCourse(cs) {
   sceneRoot.add(courseGroup);
   const scene = courseGroup;   // 以降の scene.add はコースグループに入る
 
-const trackShape = stadiumPath(R + 16.4, true);   // レーン幅+1.4m(馬2頭分)ぶん外側まで確保
+const trackShape = stadiumPath(R + 17.8, true);   // レーン幅+2.8m(馬4頭分)ぶん外側まで確保
 trackShape.holes.push(stadiumPath(R - 1.5, false));
 const track = new THREE.Mesh(
   new THREE.ShapeGeometry(trackShape, 64),
@@ -485,7 +485,7 @@ function railCurve(lane, y) {
 }
 const railMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
 scene.add(new THREE.Mesh(new THREE.TubeGeometry(railCurve(-0.3, 1.05), 520, 0.05, 6, true), railMat));
-scene.add(new THREE.Mesh(new THREE.TubeGeometry(railCurve(16.2, 1.05), 540, 0.05, 6, true), railMat));
+scene.add(new THREE.Mesh(new THREE.TubeGeometry(railCurve(17.6, 1.05), 540, 0.05, 6, true), railMat));
 
 const postGeo = new THREE.CylinderGeometry(0.045, 0.045, 1.05, 5);
 const nPost = Math.ceil(TRACK_LEN / 8) * 2 + 4;
@@ -499,7 +499,7 @@ const posts = new THREE.InstancedMesh(postGeo, railMat, nPost);
     posts.setMatrixAt(i, m);
   }
   for (let s = 0; s < TRACK_LEN && i < nPost; s += 8, i++) {
-    const p = posAt(s, 16.2);
+    const p = posAt(s, 17.6);
     m.makeTranslation(p.x, 0.52, p.z);
     posts.setMatrixAt(i, m);
   }
@@ -540,7 +540,7 @@ scene.add(posts);
 // --- 残り距離標識 ---
 [200, 400, 600, 800, 1000].forEach(function (rem) {
   const s = ((GOAL_MOD - rem) % TRACK_LEN + TRACK_LEN) % TRACK_LEN;
-  const p = posAt(s, 18.2);
+  const p = posAt(s, 19.6);
   const sign = new THREE.Mesh(
     new THREE.PlaneGeometry(3.4, 1.8),
     new THREE.MeshBasicMaterial({ map: textCanvas("残り" + rem, { border: "#c22", size: 56 }), side: THREE.DoubleSide })
@@ -1011,7 +1011,7 @@ function updateHorse(h, dt) {
     if (o === h || o.finished) continue;
     if (Math.abs(o.s - h.s) < 1.6 && Math.abs(o.lane - h.lane) < 0.7) {
       h.lane += (h.lane >= o.lane ? 1 : -1) * 1.2 * dt;
-      h.lane = Math.max(0.3, Math.min(13.9, h.lane));
+      h.lane = Math.max(0.3, Math.min(15.3, h.lane));
       break;
     }
   }
