@@ -54,7 +54,7 @@
   .chapter h3 { font-size: 16px; color: #ffe14d; letter-spacing: .06em;
     padding-bottom: 6px; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.25); }
   .raceRow { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 6px; }
-  .raceBtn { pointer-events: auto; cursor: pointer; width: 230px; text-align: left;
+  .raceBtn { position: relative; pointer-events: auto; cursor: pointer; width: 230px; text-align: left;
     background: rgba(255,255,255,.07); border: 2px solid rgba(255,255,255,.35);
     border-radius: 12px; padding: 14px 18px; transition: background .15s, border-color .15s, transform .15s; }
   .raceBtn:hover { background: rgba(224,52,60,.28); border-color: #ff6a6a; transform: translateY(-3px); }
@@ -63,6 +63,8 @@
   .raceBtn .rc { font-size: 13px; opacity: .85; }
   .raceBtn .rh { font-size: 14px; color: #ffe14d; font-weight: bold; margin-top: 8px; }
   .raceBtn .rd { font-size: 11.5px; opacity: .7; margin-top: 4px; }
+  .raceBtn .rlv { position: absolute; top: 10px; right: 12px; font-size: 11px; font-weight: bold;
+    padding: 2px 7px; border-radius: 10px; background: rgba(0,0,0,.4); }
   table.ctrl { border-collapse: collapse; margin-bottom: 14px; font-size: 14px; }
   table.ctrl td { padding: 4px 14px; border-bottom: 1px solid rgba(255,255,255,.2); text-align: left; }
   table.ctrl td:first-child { font-weight: bold; color: #ffe14d; }
@@ -115,6 +117,7 @@
       <h3>第1章　伝説の幕開け</h3>
       <div class="raceRow">
         <div class="raceBtn" data-race="0">
+          <div class="rlv" style="color:#3ec46d">難易度 1</div>
           <div class="ry">1990</div>
           <div class="rt">安田記念</div>
           <div class="rc">東京 芝1600m（左回り）</div>
@@ -122,6 +125,7 @@
           <div class="rd">府中の静寂を破る、怪物の咆哮</div>
         </div>
         <div class="raceBtn" data-race="1">
+          <div class="rlv" style="color:#64c45c">難易度 2</div>
           <div class="ry">1994</div>
           <div class="rt">菊花賞</div>
           <div class="rc">京都 芝3000m（外回り・右回り）</div>
@@ -129,6 +133,7 @@
           <div class="rd">世紀の怪物が駆ける淀、圧倒的な強さで三冠へ</div>
         </div>
         <div class="raceBtn" data-race="2">
+          <div class="rlv" style="color:#db7428">難易度 8</div>
           <div class="ry">1992</div>
           <div class="rt">ジャパンカップ</div>
           <div class="rc">東京 芝2400m（左回り）</div>
@@ -141,6 +146,7 @@
       <h3>第2章　最強黄金世代</h3>
       <div class="raceRow">
         <div class="raceBtn" data-race="3">
+          <div class="rlv" style="color:#3ec46d">難易度 1</div>
           <div class="ry">1998</div>
           <div class="rt">日本ダービー</div>
           <div class="rc">東京 芝2400m（左回り）</div>
@@ -148,6 +154,7 @@
           <div class="rd">宿命の刻、世代の頂点へ</div>
         </div>
         <div class="raceBtn" data-race="4">
+          <div class="rlv" style="color:#64c45c">難易度 2</div>
           <div class="ry">1998</div>
           <div class="rt">ジャパンカップ</div>
           <div class="rc">東京 芝2400m（左回り）</div>
@@ -155,6 +162,7 @@
           <div class="rd">蘇る不死鳥、ライバルたちとの邂逅</div>
         </div>
         <div class="raceBtn" data-race="5">
+          <div class="rlv" style="color:#d5542a">難易度 9</div>
           <div class="ry">1999</div>
           <div class="rt">有馬記念</div>
           <div class="rc">中山 芝2500m（内回り・右回り）</div>
@@ -167,6 +175,7 @@
       <h3>第3章　英雄の衝撃</h3>
       <div class="raceRow">
         <div class="raceBtn" data-race="6">
+          <div class="rlv" style="color:#3ec46d">難易度 1</div>
           <div class="ry">2006</div>
           <div class="rt">天皇賞（春）</div>
           <div class="rc">京都 芝3200m（外回り・右回り）</div>
@@ -174,6 +183,7 @@
           <div class="rd">空を飛ぶ英雄の衝撃</div>
         </div>
         <div class="raceBtn" data-race="7">
+          <div class="rlv" style="color:#8ac44c">難易度 3</div>
           <div class="ry">2004</div>
           <div class="rt">日本ダービー</div>
           <div class="rc">東京 芝2400m（左回り）</div>
@@ -181,6 +191,7 @@
           <div class="rd">大王降臨、過酷なる死のダービー</div>
         </div>
         <div class="raceBtn" data-race="8">
+          <div class="rlv" style="color:#d0342c">難易度 10</div>
           <div class="ry">2005</div>
           <div class="rt">有馬記念</div>
           <div class="rc">中山 芝2500m（内回り・右回り）</div>
@@ -193,6 +204,7 @@
       <h3>第4章　気高き名牝たち</h3>
       <div class="raceRow">
         <div class="raceBtn" data-race="9">
+          <div class="rlv" style="color:#64c45c">難易度 2</div>
           <div class="ry">2020</div>
           <div class="rt">ジャパンカップ</div>
           <div class="rc">東京 芝2400m（左回り）</div>
@@ -200,6 +212,7 @@
           <div class="rd">時代を背負う三翼、頂点を競う静かなる激突</div>
         </div>
         <div class="raceBtn" data-race="10">
+          <div class="rlv" style="color:#8ac44c">難易度 3</div>
           <div class="ry">2020</div>
           <div class="rt">宝塚記念</div>
           <div class="rc">阪神 芝2200m（内回り・右回り）</div>
@@ -207,6 +220,7 @@
           <div class="rd">絶対的グランプリ女王、新時代の創生へ</div>
         </div>
         <div class="raceBtn" data-race="11">
+          <div class="rlv" style="color:#d5542a">難易度 9</div>
           <div class="ry">2020</div>
           <div class="rt">スプリンターズS</div>
           <div class="rc">中山 芝1200m（外回り・右回り）</div>
@@ -219,6 +233,7 @@
       <h3>第5章　新時代の覇者</h3>
       <div class="raceRow">
         <div class="raceBtn" data-race="12">
+          <div class="rlv" style="color:#64c45c">難易度 2</div>
           <div class="ry">2021</div>
           <div class="rt">皐月賞</div>
           <div class="rc">中山 芝2000m（内回り・右回り）</div>
@@ -226,6 +241,7 @@
           <div class="rd">強豪を撃墜し、新時代の快速王へ</div>
         </div>
         <div class="raceBtn" data-race="13">
+          <div class="rlv" style="color:#8ac44c">難易度 3</div>
           <div class="ry">2022</div>
           <div class="rt">天皇賞（秋）</div>
           <div class="rc">東京 芝2000m（左回り）</div>
@@ -233,6 +249,7 @@
           <div class="rd">幻影を切り裂き、いざ天才の証明へ</div>
         </div>
         <div class="raceBtn" data-race="14">
+          <div class="rlv" style="color:#db7428">難易度 8</div>
           <div class="ry">2023</div>
           <div class="rt">有馬記念</div>
           <div class="rc">中山 芝2500m（内回り・右回り）</div>
@@ -260,7 +277,7 @@
     序盤は脚をためて、最終直線でスパートするのがセオリー。<br>
     前の馬の真後ろにつくとスリップストリームで消耗が減る。
   </p>
-  <div id="versionTag">v2.4.1</div>
+  <div id="versionTag">v2.5.0</div>
 </div>
 
 <div id="entry" class="overlay hidden">

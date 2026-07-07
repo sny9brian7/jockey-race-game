@@ -101,7 +101,7 @@ const RACES = [
     desc: "七冠馬たる父シンボリルドルフに続き、大怪我を乗り越えた帝王トウカイテイオーが親子制覇の偉業に挑む国際大決戦。",
     player: { name: "トウカイテイオー", odds: 4.9, adj: 0.10, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ナチュラリズム",       style: "差し", adj: 0.55,  odds: 2.6, immuneKakari: true },
+      { name: "ナチュラリズム",       style: "差し", adj: 0.7,  odds: 2.6, immuneKakari: true },
       { name: "ユーザーフレンドリー", style: "差し", adj: 0.10,  odds: 3.2 },
       { name: "ディアドクター",       style: "差し", adj: 0.12,  odds: 7.3 },
       { name: "レガシーワールド",     style: "先行", adj: 0.10,  odds: 9.6 },
@@ -162,7 +162,7 @@ const RACES = [
     desc: "スペシャルウィークとのラストバトル。ライバルの猛追を紙一重で凌ぎ切る、中山の坂でのシビアな死闘を再現。",
     player: { name: "グラスワンダー", odds: 2.8, adj: 0.10, coat: 0x96552a, mane: 0x5f3212, silk: 0xd23a2e },
     rivals: [
-      { name: "スペシャルウィーク", style: "差し", adj: 0.9, odds: 2.2, immuneKakari: true },
+      { name: "スペシャルウィーク", style: "差し", adj: 0.9, odds: 2.2, immuneKakari: true, maxVBonus: 0.5, assertive: true },
       { name: "テイエムオペラオー", style: "先行", adj: 0.12, odds: 5.4 },
       { name: "ツルマルツヨシ",     style: "先行", adj: 0.08, odds: 9.8 },
       { name: "メジロブライト",     style: "追込", adj: 0.05, odds: 15 },
@@ -282,7 +282,7 @@ const RACES = [
     spdAdj: 1.5, pace: [55, 57], vision: "スプリンターズS 芝1200m",
     copy: "電撃のスプリント、全てをねじ伏せる衝撃の末脚",
     desc: "スタートでの出遅れを挽回するスプリント戦。道中は極限まで脚をため、直線に入った瞬間に一気怒濤の末脚でごぼう抜きを狙う。",
-    player: { name: "グランアレグリア", odds: 2.2, adj: 0.16, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99 },
+    player: { name: "グランアレグリア", odds: 2.2, adj: 0.16, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99, slowStart: 0.35 },
     rivals: [
       { name: "ダノンスマッシュ",     style: "先行",   adj: 2.5,  odds: 2.2 },
       { name: "モズスーパーフレア",   style: "大逃げ", adj: 0.08,  odds: 8.1 },
@@ -343,7 +343,7 @@ const RACES = [
     spdAdj: 0.05, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
     copy: "人馬一体、復活の末脚",
     desc: "怪我から復帰した名手との熱いコンビ再結成。中山の4コーナーから一気に外を捲り、自慢の末脚を爆発させた最高の逆襲劇を再現。",
-    player: { name: "ドウデュース", odds: 4.0, adj: 0.14, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
+    player: { name: "ドウデュース", odds: 4.0, adj: 0.14, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f, kakariVolMult: 1.35 },
     rivals: [
       { name: "スターズオンアース",   style: "差し", adj: 0.55,  odds: 3.8, immuneKakari: true },
       { name: "ジャスティンパレス",   style: "差し", adj: 0.15,  odds: 4.2 },
@@ -766,11 +766,19 @@ function initRace(raceIdx) {
       kakari: isPlayer ? 0.25 : 0.2 + Math.random() * 0.25,
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
-      reaction: 0.08 + Math.random() * 0.3,
+      // slowStart: 0〜1の個別バイアス(既定0)。既存のreaction範囲(0.08〜0.38)は変えず、
+      // 乱数を範囲内でより大きい方(=出遅れ側)へ寄せる。0でも0.38は出るし1でも0.08は出うる
+      reaction: (function () {
+        const b = e.slowStart || 0;
+        let u = Math.random();
+        if (b > 0) u = u + (1 - u) * b;
+        return 0.08 + u * 0.3;
+      })(),
       // cruiseAdjMult: adjが道中の巡航速度に効く割合(既定0.4=通常のadj*0.4と同じ)。
       // 小さくすると「末脚(maxV)は強いままだが道中は前に出ない」馬を作れる
       cruise: st ? st.cruise + RACE.spdAdj + e.adj * (e.cruiseAdjMult != null ? e.cruiseAdjMult : 0.4) + rnd(0.05) - 0.03 : 0,
-      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 : 0,
+      // maxVBonus: 最高速度への個別の固定加算(既定0)。adjの比率を崩さず末脚だけ底上げしたい時に使う
+      maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + (e.maxVBonus || 0) + rnd(0.05) - 0.03 : 0,
       early: st ? st.early : 0,
       // spurtMult: スパート開始距離の個別倍率(既定1)。大きくすると早めから末脚を使い始める
       // spurtAtCorner: trueだと最後の3-4コーナー地点(REM_CORNER)からスパート開始に固定
@@ -979,6 +987,9 @@ function updateHorse(h, dt) {
       if (h.slip) dk -= 0.08;
     }
     if (raced < 300 && dk > 0) dk = 0;   // 最初の300mは掛かりが進行しない
+    // kakariVolMult: 折り合いゲージの上下動の個別倍率(既定1)。プレイヤー馬に設定すると
+    // 同じ操作・状況でもゲージが増減しやすくなる(上昇側・減衰側の両方に効く)
+    if (h.isPlayer && RACE.player.kakariVolMult) dk *= RACE.player.kakariVolMult;
     h.kakari = Math.max(0, Math.min(1, h.kakari + dk * dt));
     if (h.kakari > 0.5) {
       // 掛かり: 抑えが利かなくなる
