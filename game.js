@@ -343,7 +343,7 @@ const RACES = [
     spdAdj: 0.05, pace: [60.5, 62.5], vision: "有馬記念 芝2500m",
     copy: "人馬一体、復活の末脚",
     desc: "怪我から復帰した名手との熱いコンビ再結成。中山の4コーナーから一気に外を捲り、自慢の末脚を爆発させた最高の逆襲劇を再現。",
-    player: { name: "ドウデュース", odds: 4.0, adj: 0.14, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f, kakariVolMult: 1.35 },
+    player: { name: "ドウデュース", odds: 4.0, adj: 0.14, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f, kakariVolMult: 1.6 },
     rivals: [
       { name: "スターズオンアース",   style: "差し", adj: 0.55,  odds: 3.8, immuneKakari: true },
       { name: "ジャスティンパレス",   style: "差し", adj: 0.15,  odds: 4.2 },
@@ -907,7 +907,7 @@ let leadS = 0;         // 未ゴール馬の先頭位置（集団収束の基準
 // 僅差(RIVAL_GAP秒未満)だった場合だけ、その区間を横から見たカメラで再生する
 const REPLAY_RECENT_SEC = 5;
 const REPLAY_GAP_SEC = 0.15;
-const REPLAY_SPEED = 0.55;   // 再生速度倍率(1未満でスローモーション)
+const REPLAY_SPEED = 0.35;   // 再生速度倍率(1未満でスローモーション)
 let replayBuf = [];
 let replayFinalS = null, replayFinalLane = null;
 let replayClock = 0;
@@ -973,13 +973,14 @@ function finishReplay() {
 
 function updateReplayCamera() {
   // ゴールラインが常に画面中央に来る固定カメラ(外ラチ際、地面メッシュの範囲R+17.8内に収める)。
-  // 少し高め・広角にして直線の手前側まで見渡せるようにし、馬たちが奥から
-  // ゴールラインへ近づいてくる様子がリプレイの早い段階から見えるようにする
+  // 低め目線・ある程度望遠気味の競馬中継風だが、外側を回ってくる馬が近すぎて
+  // 見切れないよう少し高め・広めの画角で引いて撮る(カメラ位置自体はゴールラインの
+  // 真横のまま=斜めにずらすとゴールが画面中央からずれてしまうため)
   const camPt = posAt(FINISH_S, 15);
   const lookPt = posAt(FINISH_S, 4);
-  camera.position.set(camPt.x, 7.5, camPt.z);
-  camera.lookAt(lookPt.x, 1.1, lookPt.z);
-  camera.fov = 68;
+  camera.position.set(camPt.x, 2.6, camPt.z);
+  camera.lookAt(lookPt.x, 1.0, lookPt.z);
+  camera.fov = 55;
   camera.updateProjectionMatrix();
 }
 
@@ -1123,7 +1124,9 @@ function updateHorse(h, dt) {
   }
 
   // スタミナ。テン(序盤)を飛ばすと余計に消耗する = 逃げのリスク
-  let drain = Math.max(0, h.v - PLAYER.drainBase - RACE.spdAdj) * RACE.drainK;
+  // v<=drainBase+spdAdjの間は本来ゼロになるが、それだと出脚の加速中や↓を長く
+  // 押した時に全く消耗しない区間ができてしまうため、常に小さな基礎消耗を足しておく
+  let drain = Math.max(0, h.v - PLAYER.drainBase - RACE.spdAdj) * RACE.drainK + 0.3 * RACE.drainK;
   if (raced < 500) drain *= 1.35;   // テンに脚を使った代償を重く（前崩れしやすく）
   if (h.slip) drain *= 0.6;
   else if (h.cover) drain *= 0.8;   // 壁があるだけでも風よけになる
