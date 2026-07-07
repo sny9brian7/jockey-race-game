@@ -223,7 +223,7 @@ const RACES = [
     desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
     player: { name: "ハーツクライ", odds: 9.0, adj: 0.08, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ディープインパクト",   style: "追込",   adj: 4.0,  odds: 1.3, immuneKakari: true, cruiseAdjMult: 0.075, spurtAtCorner: true, assertive: true },
+      { name: "ディープインパクト",   style: "追込",   adj: 3.0,  odds: 1.3, immuneKakari: true, cruiseAdjMult: 0.1, spurtAtCorner: true, assertive: true },
       { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
       { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
       { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
