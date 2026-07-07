@@ -1125,8 +1125,10 @@ function updateHorse(h, dt) {
 
   // スタミナ。テン(序盤)を飛ばすと余計に消耗する = 逃げのリスク
   // v<=drainBase+spdAdjの間は本来ゼロになるが、それだと出脚の加速中や↓を長く
-  // 押した時に全く消耗しない区間ができてしまうため、常に小さな基礎消耗を足しておく
-  let drain = Math.max(0, h.v - PLAYER.drainBase - RACE.spdAdj) * RACE.drainK + 0.3 * RACE.drainK;
+  // 押した時に全く消耗しない区間ができてしまうため、超過分(v-drainBase-spdAdj)の
+  // 下限を1.5に固定しておく。巡航・追走時のように超過分が既に1.5を上回っている
+  // 場面ではこの下限は効かないため、通常時の消耗ペースには影響しない
+  let drain = Math.max(1.5, h.v - PLAYER.drainBase - RACE.spdAdj) * RACE.drainK;
   if (raced < 500) drain *= 1.35;   // テンに脚を使った代償を重く（前崩れしやすく）
   if (h.slip) drain *= 0.6;
   else if (h.cover) drain *= 0.8;   // 壁があるだけでも風よけになる
