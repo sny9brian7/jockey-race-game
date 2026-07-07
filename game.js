@@ -223,7 +223,7 @@ const RACES = [
     desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
     player: { name: "ハーツクライ", odds: 9.0, adj: 0.08, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ディープインパクト",   style: "追込",   adj: 2.0,  odds: 1.3, immuneKakari: true, cruiseAdjMult: 0.15, spurtMult: 1.8 },
+      { name: "ディープインパクト",   style: "追込",   adj: 2.0,  odds: 1.3, immuneKakari: true, cruiseAdjMult: 0.15, spurtAtCorner: true },
       { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
       { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
       { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
@@ -773,7 +773,8 @@ function initRace(raceIdx) {
       maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 : 0,
       early: st ? st.early : 0,
       // spurtMult: スパート開始距離の個別倍率(既定1)。大きくすると早めから末脚を使い始める
-      spurt: st ? st.spurt * (0.75 + RACE.dist / 6400) * (e.spurtMult != null ? e.spurtMult : 1) + rnd(40) : 0,
+      // spurtAtCorner: trueだと最後の3-4コーナー地点(REM_CORNER)からスパート開始に固定
+      spurt: st ? (e.spurtAtCorner ? REM_CORNER : st.spurt * (0.75 + RACE.dist / 6400) * (e.spurtMult != null ? e.spurtMult : 1) + rnd(40)) : 0,
       wob: Math.random() * 10,
       nextMove: 2 + Math.random() * 6, drift: null, atkLane: 0,
       // 道中の巡航レーン: 全馬が同じ0.9に収束すると一列縦隊になるため、
