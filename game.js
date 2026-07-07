@@ -56,7 +56,7 @@ const RACES = [
   // ══ 第1章 伝説 ══
   {
     title: "1990 安田記念", chapter: "第1章 伝説の幕開け", course: COURSES.tokyo, dist: 1600,
-    spdAdj: 0.9, pace: [57.5, 59.5], vision: "安田記念 芝1600m",
+    spdAdj: 0.9, pace: [38.5, 40.5], paceCheckDist: 600, vision: "安田記念 芝1600m",
     copy: "府中の静寂を破る、怪物の咆哮",
     desc: "マイルの舞台で繰り広げられる直線一気の高速決戦。芦毛の怪物の底力を体験する基礎チュートリアルステージ。",
     player: { name: "オグリキャップ", odds: 1.4, adj: 0.23, coat: 0xd2d2d2, mane: 0xbdbdbd, silk: 0xd23a2e },
@@ -279,7 +279,7 @@ const RACES = [
   },
   {
     title: "2020 スプリンターズS", chapter: "第4章 気高き名牝たち", course: COURSES.nakayamaOut, dist: 1200,
-    spdAdj: 1.5, pace: [55, 57], vision: "スプリンターズS 芝1200m",
+    spdAdj: 1.5, pace: [36.5, 38.5], paceCheckDist: 600, vision: "スプリンターズS 芝1200m",
     copy: "電撃のスプリント、全てをねじ伏せる衝撃の末脚",
     desc: "スタートでの出遅れを挽回するスプリント戦。道中は極限まで脚をため、直線に入った瞬間に一気怒濤の末脚でごぼう抜きを狙う。",
     player: { name: "グランアレグリア", odds: 2.2, adj: 0.16, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x1c3f99, slowStart: 0.35 },
@@ -794,6 +794,9 @@ function initRace(raceIdx) {
       // 道中の巡航レーン: 全馬が同じ0.9に収束すると一列縦隊になるため、
       // 枠順ベースで3列程度に自然分散させる（詰まればさらに外へdriftする）
       cruiseLane: 0.9 + (gate % 3) * 1.3 + rnd(0.35),
+      // 100m以上同じレーンに固定され続けないよう、巡航レーンを定期的に微調整する
+      // (詰まりが長引く前に隊列内での位置が自然に入れ替わるようにするため)
+      laneRefreshS: START_S + 80 + Math.random() * 40,
       // 個別馬の掛かり免除フラグ（脚質に合わない先頭進出でも掛からない特別枠）
       immuneKakari: !isPlayer && !!e.immuneKakari,
       mesh: null
@@ -929,14 +932,14 @@ function checkCloseFinish() {
   return (rival && gap < REPLAY_GAP_SEC) ? rival : null;
 }
 
-function startReplay(rival) {
+function startReplay() {
   state = "replay";
   replayFinalS = horses.map(function (h) { return h.s; });
   replayFinalLane = horses.map(function (h) { return h.lane; });
   replayClock = 0;
   for (let i = 0; i < horses.length; i++) horses[i].mesh.visible = true;
   fp.visible = false;
-  showMsg("🏁 " + rival.name + "との僅差のリプレイ",
+  showMsg("🏁 リプレイ",
     (replayBuf.length ? (replayBuf[replayBuf.length - 1].t - replayBuf[0].t) : 0) / REPLAY_SPEED + 0.8);
 }
 
@@ -1000,6 +1003,19 @@ function nearAhead(h) {
     if (ds > 0 && ds < 12 && dl < 1.5) cover = true;   // 前に「壁」がいる
   }
   return { block: bestBlock, slip: bestSlip, cover: cover };
+}
+
+// 詰まった馬の逃げ場を計算する。外側優先で少しずつ広げるが、外側の上限(maxOut)まで
+// 達してもまだ詰まっている場合は内側へ切り返す(以前は外側のみ・上限で頭打ちになると
+// 二度と動かなくなり、たまたま同じ上限に収束した2頭が最後までデッドロックする
+// バグがあった)
+function escapeLane(h, maxOut, escalateSec) {
+  if (h.drift == null) h.drift = Math.min(maxOut, h.lane + 2.0);
+  if (h.blockT > escalateSec) {
+    h.drift = h.drift < maxOut - 0.5 ? Math.min(maxOut, h.drift + 2.0) : Math.max(0.6, h.lane - 2.5);
+    h.blockT = 0;
+  }
+  return h.drift;
 }
 
 function updateHorse(h, dt) {
@@ -1111,6 +1127,9 @@ function updateHorse(h, dt) {
       h.blocked = true;
     }
   }
+  // 詰まりの継続時間を全馬共通で追跡(プレイヤーも含む)。長く詰まり続けている馬は
+  // sideBlockedの判定を緩め、隣に馬がいてもいずれ進路を作れるようにする
+  if (h.blocked) h.blockT += dt; else h.blockT = Math.max(0, h.blockT - dt);
 
   // 重なり解消: ほぼ同じ位置に重なった馬は横に押し出される
   for (let i = 0; i < horses.length; i++) {
@@ -1147,27 +1166,38 @@ function updateHorse(h, dt) {
   // 進路（AI）: 道中は原則ラチ沿いの隊列。長く詰まった時だけ外へ持ち出す（まくり）。
   // スパートでは各馬の攻め進路に持ち出して直線でばらける
   if (!h.isPlayer) {
+    // 同じレーンに100m以上居座り続けないよう、巡航レーン(・まくり後のdrift先)を
+    // 定期的に微調整する。これにより詰まりが長引く前に隊列内の位置が自然に
+    // 入れ替わり、詰まりが100m以内には解消されることを狙う
+    if (h.s >= h.laneRefreshS) {
+      const nudge = (Math.random() * 2 - 1) * 1.4;
+      h.cruiseLane = Math.max(0.6, Math.min(10, h.cruiseLane + nudge));
+      if (h.drift != null) h.drift = Math.max(0.6, Math.min(11, h.drift + nudge));
+      h.laneRefreshS = h.s + 80 + Math.random() * 40;
+    }
     if (raced < 100) {
       // 最初の100mはゲートの隊形のまま直進（密集回避）。寄せ・まくりは一切しない
       h.targetLane = h.startLane;
     } else if (rem >= h.spurt) {
       // 基本は各馬固有の巡航レーン(cruiseLane)へ寄せるが、詰まっている時は無理に突っ込まない。
-      // 長く詰まったら外の列に移り、道中はその列を守る（隊列が自然に2〜3列へ分散する）
-      if (h.drift != null) h.targetLane = h.drift;
-      else h.targetLane = h.blocked ? h.lane : h.cruiseLane;
-      if (h.blocked) h.blockT += dt; else h.blockT = Math.max(0, h.blockT - dt);
-      if (h.blockT > 1.5) {
-        h.drift = Math.min(10, h.lane + 1.6);
-        h.blockT = 0;
-      }
+      // 長く詰まったらescapeLane()で外側(だめなら内側)へ逃げ場を探す。
+      // 詰まりが解消したらdriftを解除し、通常の巡航レーンへ戻る
+      h.targetLane = h.blocked ? escapeLane(h, 11, 1.0) : h.cruiseLane;
+      if (!h.blocked) h.drift = null;
     } else {
-      h.targetLane = h.atkLane;
-      if (h.blocked) h.targetLane = Math.min(11, h.lane + 2.0);
+      // スパート区間も同様にescapeLane()で逃げ場を探す(以前はmin(11,lane+2.0)の
+      // 一度きりの上限しかなく、2頭が同じ上限に収束すると最後までデッドロック
+      // したままになるバグがあった)
+      h.targetLane = h.blocked ? escapeLane(h, 13, 0.8) : h.atkLane;
+      if (!h.blocked) h.drift = null;
     }
     const dl = h.targetLane - h.lane;
-    const lsp = rem < h.spurt ? 1.4 : 0.9;   // 道中の進路変更はゆっくり
+    // 道中の進路変更はゆっくりだが、詰まって逃げ場を探している間は素早く動く
+    const lsp = h.blocked ? 2.2 : (rem < h.spurt ? 1.4 : 0.9);
     const step = Math.max(-lsp * dt, Math.min(lsp * dt, dl));
-    if (step !== 0 && !sideBlocked(h, Math.sign(step))) h.lane += step;
+    // 3秒以上詰まり続けている馬は、隣に馬がいてもその場に留まり続けないよう
+    // sideBlockedの判定自体を無視して強制的に進路を切る(最後の脱出手段)
+    if (step !== 0 && (h.blockT > 3 || !sideBlocked(h, Math.sign(step)))) h.lane += step;
   }
 
   h.s += h.v * dt;
@@ -1193,8 +1223,10 @@ function sideBlocked(h, dir) {
   if (h.s - START_S < 500) return false;
   const rem = FINISH_S - h.s;
   // 最終直線に入ったら当たり判定を少し緩める（完全にすり抜けられるわけではない）。
-  // assertiveフラグを持つ馬は自分のスパート区間中も同様に緩める（勝負どころで進路を作りやすい）
-  const loosen = rem <= GOAL_MOD || (h.assertive && rem <= h.spurt);
+  // assertiveフラグを持つ馬は自分のスパート区間中も同様に緩める（勝負どころで進路を作りやすい）。
+  // 2秒以上詰まり続けている馬も同様に緩め、道中で挟まれたまま抜け出せなくなる
+  // (詰まりが長時間解消しない)事態を防ぐ
+  const loosen = rem <= GOAL_MOD || (h.assertive && rem <= h.spurt) || h.blockT > 2;
   const dsLimit = loosen ? 1.8 : 2.6;
   const dlLimit = loosen ? 0.85 : 1.2;
   for (let i = 0; i < horses.length; i++) {
@@ -1330,8 +1362,9 @@ function updateHUD(dt) {
   if (state === "replay") return;   // リプレイ中は巻き戻った位置ベースの数値を出さない
   const rem = Math.max(0, Math.round(FINISH_S - pl.s));
   elDist.textContent = pl.finished ? 0 : rem;
-  // ゴール後、結果発表(result状態)まで順位は伏せておく(僅差リプレイのオチを先に見せない)
-  elRank.textContent = (pl.finished && state !== "result") ? "?" : rankOf(pl);
+  // ラスト50mからゴール後・結果発表(result状態)まで順位は伏せておく
+  // (僅差の攻防・僅差リプレイのオチを先に見せない)
+  elRank.textContent = (rem <= 50 && state !== "result") ? "?" : rankOf(pl);
   const st = pl.stamina;
   elStam.style.width = st + "%";
   elStam.style.background = pl.exhausted ? "#d0342c" : st > 50 ? "#3ec46d" : st > 25 ? "#e8c522" : "#e07a20";
@@ -1353,16 +1386,17 @@ function updateHUD(dt) {
   elPos.style.color = pc;
 
   if (state === "race" && !pl.finished) {
-    // 先頭馬の1000m通過でペースを判定
+    // 先頭馬の通過でペースを判定(通常1000m。短距離戦は600m時点に前倒し)
     if (!fired.pace1000) {
+      const paceDist = RACE.paceCheckDist || 1000;
       let lead = 0;
       for (let i = 0; i < horses.length; i++) lead = Math.max(lead, horses[i].s - START_S);
-      if (lead >= 1000) {
+      if (lead >= paceDist) {
         const t1000 = raceTime;
         const label = t1000 < RACE.pace[0] ? "ハイ" : t1000 > RACE.pace[1] ? "スロー" : "ミドル";
         fireOnce("pace1000", function () {
-          showMsg("1000m通過 " + t1000.toFixed(1) + "秒 — " + label + "ペース", 2.6);
-          elPace.textContent = "前半1000m " + t1000.toFixed(1) + "s（" + label + "）";
+          showMsg(paceDist + "m通過 " + t1000.toFixed(1) + "秒 — " + label + "ペース", 2.6);
+          elPace.textContent = "前半" + paceDist + "m " + t1000.toFixed(1) + "s（" + label + "）";
           // ハイペースなら前にいる馬(5番手以内)は消耗が増え、後方の馬は温存されて有利に。
           // スローペースはその逆（前残りしやすい）。前後で対称に効かせる（プレイヤーも対象）
           const eff = label === "ハイ" ? 1 : label === "スロー" ? -1 : 0;
@@ -1372,7 +1406,7 @@ function updateHUD(dt) {
               const r = rankOf(o);
               o.paceMul = r <= 5 ? (eff > 0 ? 1.12 : 0.88) : (eff > 0 ? 0.88 : 1.12);
             }
-            if (eff > 0) showMsg("1000m通過 " + t1000.toFixed(1) + "秒 — ハイペース！ 前は苦しい", 2.6);
+            if (eff > 0) showMsg(paceDist + "m通過 " + t1000.toFixed(1) + "秒 — ハイペース！ 前は苦しい", 2.6);
           }
         });
       }
@@ -1421,7 +1455,7 @@ function animate(now) {
       resultTimer -= dt;
       if (resultTimer <= 0 && state === "race") {
         const rival = checkCloseFinish();
-        if (rival) startReplay(rival); else showResult();
+        if (rival) startReplay(); else showResult();
       }
     }
   } else if (state === "replay") {
