@@ -223,7 +223,7 @@ const RACES = [
     desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
     player: { name: "ハーツクライ", odds: 9.0, adj: 0.08, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ディープインパクト",   style: "追込",   adj: 4.0,  odds: 1.3, immuneKakari: true, cruiseAdjMult: 0.075, spurtAtCorner: true },
+      { name: "ディープインパクト",   style: "追込",   adj: 4.0,  odds: 1.3, immuneKakari: true, cruiseAdjMult: 0.075, spurtAtCorner: true, assertive: true },
       { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
       { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
       { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
@@ -775,6 +775,10 @@ function initRace(raceIdx) {
       // spurtMult: スパート開始距離の個別倍率(既定1)。大きくすると早めから末脚を使い始める
       // spurtAtCorner: trueだと最後の3-4コーナー地点(REM_CORNER)からスパート開始に固定
       spurt: st ? (e.spurtAtCorner ? REM_CORNER : st.spurt * (0.75 + RACE.dist / 6400) * (e.spurtMult != null ? e.spurtMult : 1) + rnd(40)) : 0,
+      // staminaEffMult: スタミナ消耗の個別倍率(既定1)。下げると同じ速度でも消耗が少なくなる
+      staminaEffMult: e.staminaEffMult != null ? e.staminaEffMult : 1,
+      // assertive: trueだと自分のスパート区間中、最終直線と同様に当たり判定を緩める
+      assertive: !!e.assertive,
       wob: Math.random() * 10,
       nextMove: 2 + Math.random() * 6, drift: null, atkLane: 0,
       // 道中の巡航レーン: 全馬が同じ0.9に収束すると一列縦隊になるため、
@@ -1003,6 +1007,8 @@ function updateHorse(h, dt) {
   if (near.block && h.v > near.block.v) {
     const gap = near.block.s - h.s;
     let capV = near.block.v;   // 2026-07: 0.97倍の追い討ちを廃止（同速まで合わせれば十分）
+    // assertiveな馬は自分のスパート区間中、隙間を割って進むイメージで同速+0.8まで許容
+    if (h.assertive && rem <= h.spurt) capV += 0.8;
     if (raced < 150) capV = Math.max(capV, 7);   // スタート直後に0km/hへ張り付かない
     const brake = gap < 1.6 ? 3 : gap < 2.6 ? 2.2 : 1.6;   // m/s^2（2026-07: 9でも横から急に壁が現れた時に体感できたためさらに緩和）
     if (h.v > capV) {
@@ -1031,6 +1037,7 @@ function updateHorse(h, dt) {
   if (h.kakari > 0.5) drain *= 1 + (h.kakari - 0.5) * 1.6;
   // ペース補正: ハイペースは前の馬に重く、スローは前の馬に軽い（1000m通過時に決定）
   drain *= h.paceMul;
+  drain *= h.staminaEffMult;   // 個別のスタミナ効率(既定1、下げるとバテにくい)
   if (drain > 0) h.stamina -= drain * dt;   // 回復はしない（使ったら戻らない）
   h.stamina = Math.max(0, h.stamina);
   if (h.stamina <= 0 && !h.exhausted) {
@@ -1081,10 +1088,12 @@ function updateHorse(h, dt) {
 // 最初の500m以降は真横にいる馬をすり抜けての進路変更はできない
 function sideBlocked(h, dir) {
   if (h.s - START_S < 500) return false;
-  // 最終直線に入ったら当たり判定を少し緩める（完全にすり抜けられるわけではない）
-  const inStretch = FINISH_S - h.s <= GOAL_MOD;
-  const dsLimit = inStretch ? 1.8 : 2.6;
-  const dlLimit = inStretch ? 0.85 : 1.2;
+  const rem = FINISH_S - h.s;
+  // 最終直線に入ったら当たり判定を少し緩める（完全にすり抜けられるわけではない）。
+  // assertiveフラグを持つ馬は自分のスパート区間中も同様に緩める（勝負どころで進路を作りやすい）
+  const loosen = rem <= GOAL_MOD || (h.assertive && rem <= h.spurt);
+  const dsLimit = loosen ? 1.8 : 2.6;
+  const dlLimit = loosen ? 0.85 : 1.2;
   for (let i = 0; i < horses.length; i++) {
     const o = horses[i];
     if (o === h || o.finished) continue;
