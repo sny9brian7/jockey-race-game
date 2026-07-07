@@ -48,6 +48,9 @@
   #title { background: rgba(0,10,25,.78); justify-content: flex-start; padding: 40px 20px; }
   #title h1 { font-size: 40px; margin-bottom: 8px; }
   #title p { font-size: 15px; margin-bottom: 18px; opacity: .9; }
+  #guideLink { pointer-events: auto; display: inline-block; margin-bottom: 22px; color: #ffe14d;
+    font-size: 14px; text-decoration: none; opacity: .85; border-bottom: 1px solid rgba(255,225,77,.4); }
+  #guideLink:hover { opacity: 1; }
   #raceList { display: flex; flex-direction: column; gap: 10px; width: 100%;
     max-width: 780px; margin-bottom: 22px; }
   .chapter { text-align: left; }
@@ -112,6 +115,7 @@
 <div id="title" class="overlay">
   <h1>🏇 ジョッキー視点レース</h1>
   <p>名馬に騎乗して歴史的レースを追体験 — レースを選んでスタート</p>
+  <a href="guide.html" id="guideLink">📖 遊び方ガイド（クリアのコツ・仕様）</a>
   <div id="raceList">
     <div class="chapter">
       <h3>第1章　伝説の幕開け</h3>
@@ -277,7 +281,7 @@
     序盤は脚をためて、最終直線でスパートするのがセオリー。<br>
     前の馬の真後ろにつくとスリップストリームで消耗が減る。
   </p>
-  <div id="versionTag">v2.7.0</div>
+  <div id="versionTag">v2.8.0</div>
 </div>
 
 <div id="entry" class="overlay hidden">
@@ -296,6 +300,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="game.js?v=2.7.0"></script>
+<script src="game.js?v=2.8.0"></script>
 </body>
 </html>
