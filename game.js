@@ -1001,9 +1001,9 @@ function updateHorse(h, dt) {
   h.blocked = false;
   if (near.block && h.v > near.block.v) {
     const gap = near.block.s - h.s;
-    let capV = near.block.v * (gap < 2.8 ? 0.97 : 1.0);
+    let capV = near.block.v;   // 2026-07: 0.97倍の追い討ちを廃止（同速まで合わせれば十分）
     if (raced < 150) capV = Math.max(capV, 7);   // スタート直後に0km/hへ張り付かない
-    const brake = gap < 1.6 ? 9 : gap < 2.6 ? 6 : 3.5;   // m/s^2（2026-07: 30は1フレームで-1.0m/sの急停止になり衝突のような違和感があったため緩和）
+    const brake = gap < 1.6 ? 3 : gap < 2.6 ? 2.2 : 1.6;   // m/s^2（2026-07: 9でも横から急に壁が現れた時に体感できたためさらに緩和）
     if (h.v > capV) {
       h.v = Math.max(capV, h.v - brake * dt);
       h.blocked = true;
