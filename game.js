@@ -223,7 +223,7 @@ const RACES = [
     desc: "無敗の三冠馬ディープインパクトを撃破するための特別な戦術。完璧なスタートから好位をキープし、背後の王者を封じ込める。",
     player: { name: "ハーツクライ", odds: 9.0, adj: 0.08, coat: 0x8b5a2b, mane: 0x4a2c17, silk: 0x2da84f },
     rivals: [
-      { name: "ディープインパクト",   style: "追込",   adj: 2.0,  odds: 1.3, immuneKakari: true },
+      { name: "ディープインパクト",   style: "追込",   adj: 2.0,  odds: 1.3, immuneKakari: true, cruiseAdjMult: 0.15, spurtMult: 1.8 },
       { name: "ゼンノロブロイ",       style: "差し",   adj: 0.15,  odds: 6.7 },
       { name: "リンカーン",           style: "差し",   adj: 0.10,  odds: 12 },
       { name: "タップダンスシチー",   style: "大逃げ", adj: 0.08,  odds: 10 },
@@ -767,10 +767,13 @@ function initRace(raceIdx) {
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
       reaction: 0.08 + Math.random() * 0.3,
-      cruise: st ? st.cruise + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 : 0,
+      // cruiseAdjMult: adjが道中の巡航速度に効く割合(既定0.4=通常のadj*0.4と同じ)。
+      // 小さくすると「末脚(maxV)は強いままだが道中は前に出ない」馬を作れる
+      cruise: st ? st.cruise + RACE.spdAdj + e.adj * (e.cruiseAdjMult != null ? e.cruiseAdjMult : 0.4) + rnd(0.05) - 0.03 : 0,
       maxV: st ? st.maxV + RACE.spdAdj + e.adj * 0.4 + rnd(0.05) - 0.03 : 0,
       early: st ? st.early : 0,
-      spurt: st ? st.spurt * (0.75 + RACE.dist / 6400) + rnd(40) : 0,
+      // spurtMult: スパート開始距離の個別倍率(既定1)。大きくすると早めから末脚を使い始める
+      spurt: st ? st.spurt * (0.75 + RACE.dist / 6400) * (e.spurtMult != null ? e.spurtMult : 1) + rnd(40) : 0,
       wob: Math.random() * 10,
       nextMove: 2 + Math.random() * 6, drift: null, atkLane: 0,
       // 道中の巡航レーン: 全馬が同じ0.9に収束すると一列縦隊になるため、
@@ -1077,12 +1080,16 @@ function updateHorse(h, dt) {
 // 最初の500m以降は真横にいる馬をすり抜けての進路変更はできない
 function sideBlocked(h, dir) {
   if (h.s - START_S < 500) return false;
+  // 最終直線に入ったら当たり判定を少し緩める（完全にすり抜けられるわけではない）
+  const inStretch = FINISH_S - h.s <= GOAL_MOD;
+  const dsLimit = inStretch ? 1.8 : 2.6;
+  const dlLimit = inStretch ? 0.85 : 1.2;
   for (let i = 0; i < horses.length; i++) {
     const o = horses[i];
     if (o === h || o.finished) continue;
     const ds = Math.abs(o.s - h.s);
     const dl = o.lane - h.lane;
-    if (ds < 2.6 && dl * dir > 0 && Math.abs(dl) < 1.2) return true;
+    if (ds < dsLimit && dl * dir > 0 && Math.abs(dl) < dlLimit) return true;
   }
   return false;
 }
