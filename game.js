@@ -766,6 +766,8 @@ function initRace(raceIdx) {
       kakari: isPlayer ? 0.25 : 0.2 + Math.random() * 0.25,
       paceMul: 1,
       finished: false, finishTime: 0, blocked: false, slip: false, blockT: 0,
+      odds: isPlayer ? (RACE.player.odds || 0) : (e.odds || 0),
+      agariStart: null, agariTime: null,
       // slowStart: 0〜1の個別バイアス(既定0)。既存のreaction範囲(0.08〜0.38)は変えず、
       // 乱数を範囲内でより大きい方(=出遅れ側)へ寄せる。0でも0.38は出るし1でも0.08は出うる
       reaction: (function () {
@@ -796,10 +798,10 @@ function initRace(raceIdx) {
       immuneKakari: !isPlayer && !!e.immuneKakari,
       mesh: null
     };
-    if (!isPlayer) {
-      h.mesh = buildHorseMesh(coat, silk, h.name);
-      scene.add(h.mesh);
-    }
+    // プレイヤーにも三人称メッシュを作る(通常は非表示、僅差リプレイの時だけ表示する)
+    h.mesh = buildHorseMesh(coat, silk, h.name);
+    h.mesh.visible = !isPlayer;
+    scene.add(h.mesh);
     horses.push(h);
   }
   pl = horses[0];
@@ -895,10 +897,91 @@ function drawMinimap() {
 }
 
 // ==== レースロジック ====
-let state = "title";   // title | count | race | result
+let state = "title";   // title | count | race | result | replay
 let countT = 0, raceTime = 0, resultTimer = -1;
 let paceBias = 0;      // レースごとのペースの振れ（AI全体に加算）
 let leadS = 0;         // 未ゴール馬の先頭位置（集団収束の基準）
+
+// ==== 僅差リプレイ ====
+// 直近RECENT_SEC秒分の全馬の位置(s,lane)を記録しておき、ゴール後に自分の着順が
+// 僅差(RIVAL_GAP秒未満)だった場合だけ、その区間を横から見たカメラで再生する
+const REPLAY_RECENT_SEC = 5;
+const REPLAY_GAP_SEC = 0.15;
+const REPLAY_SPEED = 0.55;   // 再生速度倍率(1未満でスローモーション)
+let replayBuf = [];
+let replayFinalS = null, replayFinalLane = null;
+let replayClock = 0;
+
+function checkCloseFinish() {
+  const finishedHorses = horses.filter(function (h) { return h.finished; })
+    .sort(function (a, b) { return a.finishTime - b.finishTime; });
+  const idx = finishedHorses.indexOf(pl);
+  if (idx < 0) return null;
+  let rival = null, gap = Infinity;
+  if (idx > 0) {
+    const g = pl.finishTime - finishedHorses[idx - 1].finishTime;
+    if (g < gap) { gap = g; rival = finishedHorses[idx - 1]; }
+  }
+  if (idx < finishedHorses.length - 1) {
+    const g = finishedHorses[idx + 1].finishTime - pl.finishTime;
+    if (g < gap) { gap = g; rival = finishedHorses[idx + 1]; }
+  }
+  return (rival && gap < REPLAY_GAP_SEC) ? rival : null;
+}
+
+function startReplay(rival) {
+  state = "replay";
+  replayFinalS = horses.map(function (h) { return h.s; });
+  replayFinalLane = horses.map(function (h) { return h.lane; });
+  replayClock = 0;
+  for (let i = 0; i < horses.length; i++) horses[i].mesh.visible = true;
+  fp.visible = false;
+  showMsg("🏁 " + rival.name + "との僅差のリプレイ",
+    (replayBuf.length ? (replayBuf[replayBuf.length - 1].t - replayBuf[0].t) : 0) / REPLAY_SPEED + 0.8);
+}
+
+function updateReplay(dt) {
+  if (!replayBuf.length) { finishReplay(); return; }
+  replayClock += dt * REPLAY_SPEED;
+  const t0 = replayBuf[0].t;
+  const tEnd = replayBuf[replayBuf.length - 1].t;
+  const target = t0 + replayClock;
+  if (target >= tEnd) {
+    for (let i = 0; i < horses.length; i++) {
+      horses[i].s = replayFinalS[i];
+      horses[i].lane = replayFinalLane[i];
+    }
+    finishReplay();
+    return;
+  }
+  let frame = replayBuf[0];
+  for (let i = 0; i < replayBuf.length; i++) {
+    if (replayBuf[i].t > target) break;
+    frame = replayBuf[i];
+  }
+  for (let i = 0; i < horses.length; i++) {
+    horses[i].s = frame.s[i];
+    horses[i].lane = frame.lane[i];
+  }
+}
+
+function finishReplay() {
+  for (let i = 0; i < horses.length; i++) horses[i].mesh.visible = !horses[i].isPlayer;
+  replayBuf = [];
+  showResult();
+}
+
+function updateReplayCamera() {
+  // ゴールラインが常に画面中央に来る固定カメラ(外ラチ際、地面メッシュの範囲R+17.8内に収める)。
+  // 少し高め・広角にして直線の手前側まで見渡せるようにし、馬たちが奥から
+  // ゴールラインへ近づいてくる様子がリプレイの早い段階から見えるようにする
+  const camPt = posAt(FINISH_S, 15);
+  const lookPt = posAt(FINISH_S, 4);
+  camera.position.set(camPt.x, 7.5, camPt.z);
+  camera.lookAt(lookPt.x, 1.1, lookPt.z);
+  camera.fov = 68;
+  camera.updateProjectionMatrix();
+}
 
 function nearAhead(h) {
   let bestBlock = null, bestSlip = null, cover = false;
@@ -1085,12 +1168,16 @@ function updateHorse(h, dt) {
   h.s += h.v * dt;
   h.phase += dt * (2.0 + h.v * 0.55);
 
+  // 上がりタイム: 残り600m地点を通過した時刻を記録しておき、ゴール時に差分を取る
+  if (h.agariStart == null && h.s >= FINISH_S - 600) h.agariStart = raceTime;
+
   if (h.s >= FINISH_S) {
     h.finished = true;
     h.finishTime = raceTime - (h.s - FINISH_S) / Math.max(h.v, 1);
+    if (h.agariStart != null) h.agariTime = h.finishTime - h.agariStart;
     if (h.isPlayer) {
-      const place = horses.filter(function (o) { return o.finished; }).length;
-      showMsg("ゴール！ " + place + "着", 3);
+      // 着順はここでは明かさない(結果発表まで伏せる。僅差なら尚更リプレイ後にお楽しみに)
+      showMsg("ゴール！", 3);
       resultTimer = 3.2;
     }
   }
@@ -1152,14 +1239,17 @@ function showResult() {
     const tb = b.finished ? b.finishTime : 9999 + (FINISH_S - b.s);
     return ta - tb;
   });
-  let html = "<tr><th>着</th><th>馬名</th><th>脚質</th><th>タイム</th></tr>";
+  let html = "<tr><th>着</th><th>馬名</th><th>脚質</th><th>タイム</th><th>上り</th><th>オッズ</th></tr>";
   list.forEach(function (h, i) {
     const t = h.finished ? fmtTime(h.finishTime)
       : fmtTime(raceTime + (FINISH_S - h.s) / Math.max(h.v, 8)) + "*";
+    const agari = h.agariTime != null ? h.agariTime.toFixed(1) : "-";
+    const odds = h.odds ? h.odds.toFixed(1) : "-";
     html += "<tr" + (h.isPlayer ? ' class="me"' : "") + "><td>" + (i + 1) + "</td>" +
       '<td><span class="silk" style="background:#' + h.silk.toString(16).padStart(6, "0") + '"></span>' +
       h.name + (h.isPlayer ? "（あなた）" : "") + "</td>" +
-      "<td>" + h.style + "</td><td>" + t + "</td></tr>";
+      "<td>" + h.style + "</td><td>" + t + "</td>" +
+      "<td>" + agari + "</td><td>" + odds + "</td></tr>";
   });
   $("resTable").innerHTML = html;
   const myRank = list.indexOf(pl) + 1;
@@ -1179,6 +1269,7 @@ function updateCamera(dt) {
     fp.visible = false;
     return;
   }
+  if (state === "replay") { updateReplayCamera(); return; }
   // Vキー: 後方確認 / Cキー: 左確認 / Bキー: 右確認
   const viewDir = keys.KeyV ? "back" : keys.KeyC ? "left" : keys.KeyB ? "right" : "front";
   fp.visible = viewDir === "front";
@@ -1212,7 +1303,8 @@ function updateCamera(dt) {
 
 // ==== AIメッシュ反映 ====
 function updateMeshes() {
-  for (let i = 1; i < horses.length; i++) {
+  // プレイヤー(i=0)のメッシュも通常は非表示のまま位置だけ更新しておく(僅差リプレイ用)
+  for (let i = 0; i < horses.length; i++) {
     const h = horses[i];
     const p = posAt(h.s, h.lane);
     h.mesh.position.set(p.x, 0.02 + Math.abs(Math.sin(h.phase)) * 0.1 * Math.min(1, h.v / 14), p.z);
@@ -1230,9 +1322,11 @@ function updateMeshes() {
 function updateHUD(dt) {
   if (msgTimer > 0) { msgTimer -= dt; if (msgTimer <= 0) elMsg.style.opacity = 0; }
   if (!pl) return;
+  if (state === "replay") return;   // リプレイ中は巻き戻った位置ベースの数値を出さない
   const rem = Math.max(0, Math.round(FINISH_S - pl.s));
   elDist.textContent = pl.finished ? 0 : rem;
-  elRank.textContent = rankOf(pl);
+  // ゴール後、結果発表(result状態)まで順位は伏せておく(僅差リプレイのオチを先に見せない)
+  elRank.textContent = (pl.finished && state !== "result") ? "?" : rankOf(pl);
   const st = pl.stamina;
   elStam.style.width = st + "%";
   elStam.style.background = pl.exhausted ? "#d0342c" : st > 50 ? "#3ec46d" : st > 25 ? "#e8c522" : "#e07a20";
@@ -1311,10 +1405,22 @@ function animate(now) {
     leadS = -1e9;
     for (let i = 0; i < horses.length; i++) if (!horses[i].finished) leadS = Math.max(leadS, horses[i].s);
     for (let i = 0; i < N; i++) updateHorse(horses[i], dt);
+
+    if (state === "race") {
+      // 僅差リプレイ用に直近数秒分の全馬位置を記録しておく
+      replayBuf.push({ t: raceTime, s: horses.map(function (h) { return h.s; }), lane: horses.map(function (h) { return h.lane; }) });
+      while (replayBuf.length > 1 && raceTime - replayBuf[0].t > REPLAY_RECENT_SEC) replayBuf.shift();
+    }
+
     if (resultTimer > 0) {
       resultTimer -= dt;
-      if (resultTimer <= 0 && state === "race") showResult();
+      if (resultTimer <= 0 && state === "race") {
+        const rival = checkCloseFinish();
+        if (rival) startReplay(rival); else showResult();
+      }
     }
+  } else if (state === "replay") {
+    updateReplay(dt);
   }
 
   updateMeshes();
