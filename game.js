@@ -464,7 +464,7 @@ function buildCourse(cs) {
   sceneRoot.add(courseGroup);
   const scene = courseGroup;   // 以降の scene.add はコースグループに入る
 
-const trackShape = stadiumPath(R + 17.8, true);   // レーン幅+2.8m(馬4頭分)ぶん外側まで確保
+const trackShape = stadiumPath(R + 30, true);   // 外側の地面を広めに確保(僅差リプレイの外側カメラ用の余地)
 trackShape.holes.push(stadiumPath(R - 1.5, false));
 const track = new THREE.Mesh(
   new THREE.ShapeGeometry(trackShape, 64),
@@ -975,15 +975,16 @@ function finishReplay() {
 }
 
 function updateReplayCamera() {
-  // ゴールラインが常に画面中央に来る固定カメラ(外ラチ際、地面メッシュの範囲R+17.8内に収める)。
-  // 低め目線・ある程度望遠気味の競馬中継風だが、外側を回ってくる馬が近すぎて
-  // 見切れないよう少し高め・広めの画角で引いて撮る(カメラ位置自体はゴールラインの
-  // 真横のまま=斜めにずらすとゴールが画面中央からずれてしまうため)
-  const camPt = posAt(FINISH_S, 15);
+  // ゴールラインが常に画面中央に来る固定カメラ。地面メッシュをR+30まで広げたことで
+  // かなり外側(lane=25)まで下がれるようになり、大外を回る馬(詰まり脱出時は
+  // lane13前後まで広がる)も余裕を持って画角に収まる
+  // (カメラ位置自体はゴールラインの真横のまま=斜めにずらすとゴールが
+  // 画面中央からずれてしまうため据え置き)
+  const camPt = posAt(FINISH_S, 25);
   const lookPt = posAt(FINISH_S, 4);
-  camera.position.set(camPt.x, 2.6, camPt.z);
+  camera.position.set(camPt.x, 4, camPt.z);
   camera.lookAt(lookPt.x, 1.0, lookPt.z);
-  camera.fov = 55;
+  camera.fov = 48;
   camera.updateProjectionMatrix();
 }
 
@@ -1366,8 +1367,13 @@ function updateHUD(dt) {
   // (僅差の攻防・僅差リプレイのオチを先に見せない)
   elRank.textContent = (rem <= 50 && state !== "result") ? "?" : rankOf(pl);
   const st = pl.stamina;
-  elStam.style.width = st + "%";
-  elStam.style.background = pl.exhausted ? "#d0342c" : st > 50 ? "#3ec46d" : st > 25 ? "#e8c522" : "#e07a20";
+  // st(スタミナ残量)はstaminaMax基準の絶対値(距離により100〜124など100超がありうる)であり、
+  // それ自体を%として使うとバーが100%超で描画され、外側のoverflow:hiddenで
+  // クリップされて実際には減っていても「満タンのまま」に見えるバグがあった(2026-07修正)。
+  // 色分けの閾値(50%/25%)も同様に絶対値ではなくstaminaMax比で判定する必要がある
+  const stPct = st / pl.staminaMax * 100;
+  elStam.style.width = stPct + "%";
+  elStam.style.background = pl.exhausted ? "#d0342c" : stPct > 50 ? "#3ec46d" : stPct > 25 ? "#e8c522" : "#e07a20";
   elSpeed.textContent = Math.round(pl.v * 3.6) + " km/h";
   elKoaiBar.style.width = Math.round((1 - pl.kakari) * 100) + "%";
   elKoaiBar.style.background = pl.kakari < 0.4 ? "#3ec46d" : pl.kakari < 0.7 ? "#e8c522" : "#d0342c";
