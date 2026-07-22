@@ -89,7 +89,7 @@
   .waku { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center;
     border-radius: 4px; font-weight: bold; font-size: 13px; border: 1px solid rgba(255,255,255,.4); }
 
-  #err { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+  #err { position: absolute; inset: 0; z-index: 999; display: none; align-items: center; justify-content: center;
     color: #fff; background: #300; font-size: 18px; padding: 30px; text-align: center; }
 </style>
 </head>
@@ -281,7 +281,7 @@
     序盤は脚をためて、最終直線でスパートするのがセオリー。<br>
     前の馬の真後ろにつくとスリップストリームで消耗が減る。
   </p>
-  <div id="versionTag">v2.9.0</div>
+  <div id="versionTag">v2.9.1</div>
 </div>
 
 <div id="entry" class="overlay hidden">
@@ -300,6 +300,14 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="game.js?v=2.9.0"></script>
+<script>
+  // cdnjsが失敗/ブロックされた場合、jsdelivrへフォールバック。
+  // document.writeなら後続scriptより先に同期的に読み込まれる
+  // (script.onerrorでsrcを差し替える方式だと非同期になりgame.jsの実行に間に合わない)
+  if (typeof THREE === "undefined") {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"><\/script>');
+  }
+</script>
+<script src="game.js?v=2.9.1"></script>
 </body>
 </html>
